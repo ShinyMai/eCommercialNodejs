@@ -1,9 +1,8 @@
 import app from './src/app.js';
 import mongoose from "mongoose";
+import config from "@/configs/config.mongodb.js";
 
-const PORT = 3000;
-
-const server = app.listen(PORT, () => console.log(`Server is running on port ${PORT}`));
+const server = app.listen(config.app.port, () => console.log(`Server is running on port ${config.app.port}`));
 
 process.on('SIGINT', async () => {
     await mongoose.disconnect();

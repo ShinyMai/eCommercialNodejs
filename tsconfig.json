@@ -3,17 +3,44 @@
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
-
     "rootDir": "./src",
     "outDir": "./dist",
-
     "esModuleInterop": true,
     "strict": true,
-
-    "types": ["node"],
-
+    "types": [
+      "node"
+    ],
     "sourceMap": true,
-
-    "skipLibCheck": true
+    "skipLibCheck": true,
+    "baseUrl": "./src",
+    "paths": {
+      "@/*": [
+        "*"
+      ],
+      "@/configs/*": [
+        "configs/*"
+      ],
+      "@/controllers/*": [
+        "controllers/*"
+      ],
+      "@/middlewares/*": [
+        "middlewares/*"
+      ],
+      "@/models/*": [
+        "models/*"
+      ],
+      "@/routes/*": [
+        "routes/*"
+      ],
+      "@/services/*": [
+        "services/*"
+      ],
+      "@/utils/*": [
+        "utils/*"
+      ],
+      "@/dbs/*": [
+        "dbs/*"
+      ]
+    }
   }
 }
