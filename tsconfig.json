@@ -3,44 +3,29 @@
     "target": "ES2020",
     "module": "NodeNext",
     "moduleResolution": "NodeNext",
+
     "rootDir": "./src",
     "outDir": "./dist",
+
     "esModuleInterop": true,
     "strict": true,
-    "types": [
-      "node"
-    ],
+
+    "types": ["node"],
+
     "sourceMap": true,
     "skipLibCheck": true,
-    "baseUrl": "./src",
+
     "paths": {
-      "@/*": [
-        "*"
-      ],
-      "@/configs/*": [
-        "configs/*"
-      ],
-      "@/controllers/*": [
-        "controllers/*"
-      ],
-      "@/middlewares/*": [
-        "middlewares/*"
-      ],
-      "@/models/*": [
-        "models/*"
-      ],
-      "@/routes/*": [
-        "routes/*"
-      ],
-      "@/services/*": [
-        "services/*"
-      ],
-      "@/utils/*": [
-        "utils/*"
-      ],
-      "@/dbs/*": [
-        "dbs/*"
-      ]
+      "@/*": ["./src/*"],
+      "@/configs/*": ["./src/configs/*"],
+      "@/controllers/*": ["./src/controllers/*"],
+      "@/middlewares/*": ["./src/middlewares/*"],
+      "@/models/*": ["./src/models/*"],
+      "@/routes/*": ["./src/routes/*"],
+      "@/services/*": ["./src/services/*"],
+      "@/utils/*": ["./src/utils/*"],
+      "@/dbs/*": ["./src/dbs/*"],
+      "@/helpers/*": ["./src/helpers/*"]
     }
   }
 }
