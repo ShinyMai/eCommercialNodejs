@@ -5,6 +5,7 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import KeyTokenService from "./keyToken.service.js";
 import { createTokenPair } from "@/auth/authUtils.js";
+import { getInfoData } from "@/utils/index.js";
 
 interface SignUpPayload {
   name: string;
@@ -12,26 +13,54 @@ interface SignUpPayload {
   password: string;
 }
 
+interface TokenPair {
+  accessToken: string;
+  refreshToken: string;
+}
+
+interface ServiceResponse<T = unknown> {
+  code: number;
+  status: "success" | "error";
+  message: string;
+  metadata?: T;
+}
+
 const RoleShop = {
   SHOP: "shop",
   WRITE: "0",
   EDITOR: "1",
   ADMIN: "2",
-};
+} as const;
+
+const StatusCode = {
+  CREATED: 201,
+  CONFLICT: 409,
+  INTERNAL_ERROR: 500,
+} as const;
+
+const BCRYPT_SALT_ROUNDS = 10;
+const RSA_MODULUS_LENGTH = 4096;
 
 export default class AccessService {
-  static signup = async ({ name, email, password }: SignUpPayload) => {
+  static signup = async ({
+    name,
+    email,
+    password,
+  }: SignUpPayload): Promise<ServiceResponse> => {
+    let createdShopId: string | null = null;
+
     try {
-      const holderShops = await shopModel.findOne({ email }).lean();
-      if (holderShops) {
+      const emailTaken = await AccessService.isEmailTaken(email);
+      if (emailTaken) {
         return {
-          code: "xxx",
-          message: "Email already exists",
+          code: StatusCode.CONFLICT,
           status: "error",
+          message: "Email already exists",
         };
       }
 
-      const passwordHash = await bcrypt.hash(password, 10);
+      const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
+
       const newShop = await shopModel.create({
         name,
         email,
@@ -39,70 +68,96 @@ export default class AccessService {
         role: [RoleShop.SHOP],
       });
 
-      if (newShop) {
-        //created private key and public key
-        const { privateKey, publicKey } = crypto.generateKeyPairSync("rsa", {
-          modulusLength: 4096,
-          publicKeyEncoding: {
-            type: "spki",
-            format: "pem",
-          },
+      createdShopId = newShop._id.toString();
 
-          privateKeyEncoding: {
-            type: "pkcs8",
-            format: "pem",
-          },
-        });
+      const { privateKey, publicKey } = AccessService.generateRsaKeyPair();
 
-        console.log(privateKey, publicKey);
+      const keyTokenCreated = await KeyTokenService.createKeyToken({
+        user: { id: createdShopId },
+        publicKey,
+      });
 
-        const publicKeyString = await KeyTokenService.createKeyToken({
-          user: { id: newShop._id.toString() },
-          publicKey,
-        });
-
-        if (!publicKeyString) {
-          return {
-            code: "xxx",
-            message: "Failed to create key token",
-            status: "error",
-          };
-        }
-
-        const tokens = await createTokenPair(
-          {
-            userId: newShop._id,
-            email: newShop.email,
-          },
-          publicKey,
-          privateKey
-        );
-
+      if (!keyTokenCreated) {
+        await AccessService.rollbackShop(createdShopId);
         return {
-          code: "20001",
-          metadata: {
-            shop: {
-              _id: newShop._id,
-              name: newShop.name,
-              email: newShop.email,
-            },
-            tokens,
-          },
+          code: StatusCode.INTERNAL_ERROR,
+          status: "error",
+          message: "Failed to create key token",
+        };
+      }
+
+      const tokens = await createTokenPair(
+        {
+          userId: newShop._id,
+          email: newShop.email,
+        },
+        publicKey,
+        privateKey
+      );
+
+      if (!tokens) {
+        await AccessService.rollbackShop(createdShopId);
+        return {
+          code: StatusCode.INTERNAL_ERROR,
+          status: "error",
+          message: "Failed to create authentication tokens",
         };
       }
 
       return {
-        code: "20001",
-        message: "Shop created successfully",
+        code: StatusCode.CREATED,
         status: "success",
-        metadata: null,
+        message: "Shop created successfully",
+        metadata: {
+          shop: getInfoData({
+            field: ["_id", "name", "email", "role"],
+            object: newShop,
+          }),
+          tokens,
+        },
       };
     } catch (error) {
+      console.error("[AccessService.signup] error:", error);
+
+      if (createdShopId) {
+        await AccessService.rollbackShop(createdShopId);
+      }
+
       return {
-        code: "xxx",
-        message: (error as Error).message,
+        code: StatusCode.INTERNAL_ERROR,
         status: "error",
+        message: "Something went wrong while creating the shop",
       };
+    }
+  };
+
+  private static isEmailTaken = async (email: string): Promise<boolean> => {
+    const existing = await shopModel.findOne({ email }).lean();
+    return Boolean(existing);
+  };
+
+  private static generateRsaKeyPair = () => {
+    return crypto.generateKeyPairSync("rsa", {
+      modulusLength: RSA_MODULUS_LENGTH,
+      publicKeyEncoding: {
+        type: "spki",
+        format: "pem",
+      },
+      privateKeyEncoding: {
+        type: "pkcs8",
+        format: "pem",
+      },
+    });
+  };
+
+  private static rollbackShop = async (shopId: string): Promise<void> => {
+    try {
+      await shopModel.deleteOne({ _id: shopId });
+    } catch (cleanupError) {
+      console.error(
+        `[AccessService.rollbackShop] failed to delete shop ${shopId}:`,
+        cleanupError
+      );
     }
   };
 }
