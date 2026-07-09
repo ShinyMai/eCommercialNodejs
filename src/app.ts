@@ -6,6 +6,10 @@ import DatabaseFactory from "@/dbs/db.factory.js";
 import checkOverload from "@/helpers/check.connect.js";
 import router from "@/routes/index.js";
 
+interface ErrorWithStatus extends Error {
+  status?: number;
+}
+
 const app = express();
 
 //init middleware
@@ -23,5 +27,28 @@ checkOverload();
 app.use("", router);
 
 //handling errors
+app.use(
+  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+    const error = new Error("Not found") as ErrorWithStatus;
+    error.status = 404;
+    next(error);
+  },
+);
+
+app.use(
+  (
+    error: ErrorWithStatus,
+    req: express.Request,
+    res: express.Response,
+    next: express.NextFunction,
+  ) => {
+    const statusCode = error.status || 500;
+    return res.status(statusCode).json({
+      status: "error",
+      code: statusCode,
+      message: error.message,
+    });
+  },
+);
 
 export default app;
