@@ -4,12 +4,7 @@ import AccessService from "@/services/access.service.js";
 
 class AccessController {
   async shopSignup(req: Request, res: Response, next: NextFunction) {
-    try {
-      console.log("shopSignup", req.body);
-      return res.status(201).json(await AccessService.signup(req.body));
-    } catch (e) {
-      next(e);
-    }
+    return res.status(201).json(await AccessService.signup(req.body));
   }
 }
 

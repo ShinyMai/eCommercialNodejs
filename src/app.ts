@@ -46,7 +46,7 @@ app.use(
     return res.status(statusCode).json({
       status: "error",
       code: statusCode,
-      message: error.message,
+      message: error.message || "Internal Server Error",
     });
   },
 );

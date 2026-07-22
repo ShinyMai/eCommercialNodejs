@@ -5,17 +5,13 @@ import bcrypt from "bcrypt";
 import crypto from "crypto";
 import KeyTokenService from "./keyToken.service.js";
 import { createTokenPair } from "@/auth/authUtils.js";
-import { getInfoData } from "@/utils/index.js";
+import { BadRequestError, InternalServerError } from "@/core/error.response.js";
+import { getInfoData } from "@/common/utils/index.js";
 
 interface SignUpPayload {
   name: string;
   email: string;
   password: string;
-}
-
-interface TokenPair {
-  accessToken: string;
-  refreshToken: string;
 }
 
 interface ServiceResponse<T = unknown> {
@@ -32,12 +28,6 @@ const RoleShop = {
   ADMIN: "2",
 } as const;
 
-const StatusCode = {
-  CREATED: 201,
-  CONFLICT: 409,
-  INTERNAL_ERROR: 500,
-} as const;
-
 const BCRYPT_SALT_ROUNDS = 10;
 const RSA_MODULUS_LENGTH = 4096;
 
@@ -52,11 +42,7 @@ export default class AccessService {
     try {
       const emailTaken = await AccessService.isEmailTaken(email);
       if (emailTaken) {
-        return {
-          code: StatusCode.CONFLICT,
-          status: "error",
-          message: "Email already exists",
-        };
+        throw new BadRequestError("Email is already taken");
       }
 
       const passwordHash = await bcrypt.hash(password, BCRYPT_SALT_ROUNDS);
@@ -79,11 +65,9 @@ export default class AccessService {
 
       if (!keyTokenCreated) {
         await AccessService.rollbackShop(createdShopId);
-        return {
-          code: StatusCode.INTERNAL_ERROR,
-          status: "error",
-          message: "Failed to create key token",
-        };
+        throw new InternalServerError(
+          "Failed to create key token for the shop",
+        );
       }
 
       const tokens = await createTokenPair(
@@ -92,20 +76,16 @@ export default class AccessService {
           email: newShop.email,
         },
         publicKey,
-        privateKey
+        privateKey,
       );
 
       if (!tokens) {
         await AccessService.rollbackShop(createdShopId);
-        return {
-          code: StatusCode.INTERNAL_ERROR,
-          status: "error",
-          message: "Failed to create authentication tokens",
-        };
+        throw new InternalServerError("Failed to create authentication tokens");
       }
 
       return {
-        code: StatusCode.CREATED,
+        code: 123,
         status: "success",
         message: "Shop created successfully",
         metadata: {
@@ -123,11 +103,9 @@ export default class AccessService {
         await AccessService.rollbackShop(createdShopId);
       }
 
-      return {
-        code: StatusCode.INTERNAL_ERROR,
-        status: "error",
-        message: "Something went wrong while creating the shop",
-      };
+      throw new InternalServerError(
+        "Something went wrong while creating the shop",
+      );
     }
   };
 
@@ -156,7 +134,7 @@ export default class AccessService {
     } catch (cleanupError) {
       console.error(
         `[AccessService.rollbackShop] failed to delete shop ${shopId}:`,
-        cleanupError
+        cleanupError,
       );
     }
   };
