@@ -16,7 +16,6 @@ interface SignUpPayload {
 
 interface ServiceResponse<T = unknown> {
   code: number;
-  status: "success" | "error";
   message: string;
   metadata?: T;
 }
@@ -85,8 +84,7 @@ export default class AccessService {
       }
 
       return {
-        code: 123,
-        status: "success",
+        code: 201,
         message: "Shop created successfully",
         metadata: {
           shop: getInfoData({

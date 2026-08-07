@@ -22,7 +22,7 @@ export default class KeyTokenService {
 
       return tokens ? tokens.publicKey : null;
     } catch (error) {
-      return error;
+      throw new Error("Error creating key token");
     }
   };
 }

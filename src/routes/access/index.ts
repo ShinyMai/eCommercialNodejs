@@ -7,5 +7,6 @@ import { asyncHandler } from "@/auth/checkAuth.js";
 const router = Router();
 
 router.post("/shop/signup", asyncHandler(AccessController.shopSignup));
+router.post("/create/key", asyncHandler(AccessController.createApiKey));
 
 export default router;
