@@ -5,7 +5,7 @@ import jwt from "jsonwebtoken";
 const createTokenPair = (
   payload: any,
   publicKey: string,
-  privateKey: string
+  privateKey: string,
 ) => {
   try {
     const accessToken = jwt.sign(payload, privateKey, {

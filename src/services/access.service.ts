@@ -1,12 +1,18 @@
 "use strict";
 
 import shopModel from "@/models/shop.model.js";
+import keyTokenModel from "@/models/keyToken.model.js";
 import bcrypt from "bcrypt";
 import crypto from "crypto";
 import KeyTokenService from "./keyToken.service.js";
 import { createTokenPair } from "@/auth/authUtils.js";
-import { BadRequestError, InternalServerError } from "@/core/error.response.js";
+import {
+  BadRequestError,
+  ErrorResponse,
+  InternalServerError,
+} from "@/core/error.response.js";
 import { getInfoData } from "@/common/utils/index.js";
+import log from "@/helpers/logger.js";
 
 interface SignUpPayload {
   name: string;
@@ -14,10 +20,8 @@ interface SignUpPayload {
   password: string;
 }
 
-interface ServiceResponse<T = unknown> {
-  code: number;
-  message: string;
-  metadata?: T;
+interface SignUpResult {
+  shop: Record<string, unknown>;
 }
 
 const RoleShop = {
@@ -31,11 +35,46 @@ const BCRYPT_SALT_ROUNDS = 10;
 const RSA_MODULUS_LENGTH = 4096;
 
 export default class AccessService {
+  private static isEmailTaken = async (email: string): Promise<boolean> => {
+    const existing = await shopModel.findOne({ email }).lean();
+    return Boolean(existing);
+  };
+
+  private static generateRsaKeyPair = () => {
+    return crypto.generateKeyPairSync("rsa", {
+      modulusLength: RSA_MODULUS_LENGTH,
+      publicKeyEncoding: {
+        type: "spki",
+        format: "pem",
+      },
+      privateKeyEncoding: {
+        type: "pkcs8",
+        format: "pem",
+      },
+    });
+  };
+
+  private static rollbackShop = async (shopId: string): Promise<void> => {
+    try {
+      await shopModel.deleteOne({ _id: shopId });
+    } catch (cleanupError) {
+      log.error("AccessService.rollbackShop", cleanupError, { shopId });
+    }
+  };
+
+  private static rollbackKeyToken = async (shopId: string): Promise<void> => {
+    try {
+      await keyTokenModel.deleteOne({ user: shopId });
+    } catch (cleanupError) {
+      log.error("AccessService.rollbackKeyToken", cleanupError, { shopId });
+    }
+  };
+
   static signup = async ({
     name,
     email,
     password,
-  }: SignUpPayload): Promise<ServiceResponse> => {
+  }: SignUpPayload): Promise<SignUpResult> => {
     let createdShopId: string | null = null;
 
     try {
@@ -64,6 +103,8 @@ export default class AccessService {
 
       if (!keyTokenCreated) {
         await AccessService.rollbackShop(createdShopId);
+        // Lỗi hạ tầng thật sự (ghi DB thất bại) -> không phải lỗi do người dùng nhập sai
+        // nên vẫn là InternalServerError (isOperational: false), sẽ được log ở mức "error".
         throw new InternalServerError(
           "Failed to create key token for the shop",
         );
@@ -79,60 +120,37 @@ export default class AccessService {
       );
 
       if (!tokens) {
+        // keyToken đã tạo thành công ở bước trên nhưng bước ký JWT thất bại
+        // -> phải rollback cả keyToken, không chỉ shop, tránh để lại document rác
         await AccessService.rollbackShop(createdShopId);
+        await AccessService.rollbackKeyToken(createdShopId);
         throw new InternalServerError("Failed to create authentication tokens");
       }
 
       return {
-        code: 201,
-        message: "Shop created successfully",
-        metadata: {
-          shop: getInfoData({
-            field: ["_id", "name", "email", "role"],
-            object: newShop,
-          }),
-          tokens,
-        },
+        shop: getInfoData({
+          field: ["_id", "name", "email", "role"],
+          object: newShop,
+        }),
       };
     } catch (error) {
-      console.error("[AccessService.signup] error:", error);
-
       if (createdShopId) {
         await AccessService.rollbackShop(createdShopId);
       }
 
+      // Lỗi đã được nhận diện từ trước (BadRequestError, ConflictRequestError...)
+      // -> throw lại NGUYÊN VẸN để giữ đúng status code & message cho client
+      // (KHÔNG ép thành InternalServerError/500 như code cũ, gây sai lệch response).
+      if (error instanceof ErrorResponse) {
+        throw error;
+      }
+
+      // Chỉ những lỗi KHÔNG xác định trước (DB mất kết nối, bug...) mới log ở mức "error"
+      // và bọc lại thành InternalServerError để không lộ chi tiết nội bộ cho client.
+      // Không log `password` — chỉ log các trường an toàn để vẫn nhận diện được request nào lỗi.
+      log.error("AccessService.signup", error, { email });
       throw new InternalServerError(
         "Something went wrong while creating the shop",
-      );
-    }
-  };
-
-  private static isEmailTaken = async (email: string): Promise<boolean> => {
-    const existing = await shopModel.findOne({ email }).lean();
-    return Boolean(existing);
-  };
-
-  private static generateRsaKeyPair = () => {
-    return crypto.generateKeyPairSync("rsa", {
-      modulusLength: RSA_MODULUS_LENGTH,
-      publicKeyEncoding: {
-        type: "spki",
-        format: "pem",
-      },
-      privateKeyEncoding: {
-        type: "pkcs8",
-        format: "pem",
-      },
-    });
-  };
-
-  private static rollbackShop = async (shopId: string): Promise<void> => {
-    try {
-      await shopModel.deleteOne({ _id: shopId });
-    } catch (cleanupError) {
-      console.error(
-        `[AccessService.rollbackShop] failed to delete shop ${shopId}:`,
-        cleanupError,
       );
     }
   };

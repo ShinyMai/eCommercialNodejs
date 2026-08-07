@@ -2,29 +2,37 @@
 
 import { reasonPhrases } from "@/common/constants/reasonPhrases.js";
 import { statusCodes } from "@/common/constants/statusCodes.js";
+import { getRequestId } from "@/helpers/request.context.js";
 import type { Response } from "express";
 
 class SuccessResponse {
+  public status: "success" = "success";
+  public code: number;
+  public message: string;
+  public metadata: object;
+  public requestId?: string;
+  public timestamp: string;
+
   constructor(
-    public message: string,
-    public statusCode: number = statusCodes.OK,
-    public reasonStatusCode = reasonPhrases.OK,
-    public metadata: object = {},
+    message: string,
+    statusCode: number = statusCodes.OK,
+    metadata: object = {},
   ) {
-    this.message = !message ? reasonPhrases.OK : message;
-    this.statusCode = statusCode;
-    this.reasonStatusCode = reasonStatusCode;
+    this.message = message || reasonPhrases.OK;
+    this.code = statusCode;
     this.metadata = metadata;
+    this.requestId = getRequestId();
+    this.timestamp = new Date().toISOString();
   }
 
-  send(res: Response, header = {}) {
-    return res.status(this.statusCode).json(this);
+  send(res: Response) {
+    return res.status(this.code).json(this);
   }
 }
 
 class OK extends SuccessResponse {
-  constructor({ message, metadata }: { message: string; metadata: object }) {
-    super(message, statusCodes.OK, reasonPhrases.OK, metadata);
+  constructor({ message, metadata }: { message: string; metadata?: object }) {
+    super(message, statusCodes.OK, metadata);
   }
 }
 
@@ -32,16 +40,14 @@ class Created extends SuccessResponse {
   constructor({
     message,
     statusCode = statusCodes.CREATED,
-    reasonStatusCode = reasonPhrases.CREATED,
     metadata,
   }: {
     message: string;
     statusCode?: number;
-    reasonStatusCode?: string;
-    metadata: object;
+    metadata?: object;
   }) {
-    super(message, statusCode, reasonStatusCode, metadata);
+    super(message, statusCode, metadata);
   }
 }
 
-export { OK, Created };
+export { SuccessResponse, OK, Created };

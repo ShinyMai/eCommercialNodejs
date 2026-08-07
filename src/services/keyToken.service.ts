@@ -1,6 +1,6 @@
 "use strict";
 import keyTokenModel from "@/models/keyToken.model.js";
-import { KeyObject } from "crypto";
+import log from "@/helpers/logger.js";
 
 interface CreateKeyTokenPayload {
   user: {
@@ -13,7 +13,7 @@ export default class KeyTokenService {
   static createKeyToken = async ({
     user,
     publicKey,
-  }: CreateKeyTokenPayload) => {
+  }: CreateKeyTokenPayload): Promise<string | null> => {
     try {
       const tokens = await keyTokenModel.create({
         user: user.id,
@@ -22,7 +22,8 @@ export default class KeyTokenService {
 
       return tokens ? tokens.publicKey : null;
     } catch (error) {
-      throw new Error("Error creating key token");
+      log.error("KeyTokenService.createKeyToken", error, { userId: user.id });
+      return null;
     }
   };
 }

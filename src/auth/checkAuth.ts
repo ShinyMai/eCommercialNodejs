@@ -2,6 +2,8 @@
 
 import { findById } from "@/services/apiKey.service.js";
 import { NextFunction, Request, Response } from "express";
+import { ForbiddenError } from "@/core/error.response.js";
+import log from "@/helpers/logger.js";
 
 const HEADER = {
   API_KEY: "x-api-key",
@@ -24,32 +26,35 @@ const apiKey = async (
   try {
     const key = req.headers[HEADER.API_KEY]?.toString();
     if (!key) {
-      return res.status(403).json({ message: "Forbidden" });
+      throw new ForbiddenError("Missing x-api-key header");
     }
 
     //check objKey
     const objKey = await findById(key);
     if (!objKey) {
-      return res.status(403).json({ message: "Forbidden" });
+      throw new ForbiddenError("Invalid API key");
     }
 
     req.objKey = objKey;
     next();
   } catch (error) {
-    return res.status(500).json({ message: "Internal Server Error" });
+    next(error);
   }
 };
 
 const checkPermission = (permissions: string) => {
   return (req: RequestWithObjKey, res: Response, next: NextFunction) => {
     if (!req.objKey?.permissions) {
-      return res.status(403).json({ message: "Permission denied" });
+      return next(new ForbiddenError("Permission denied"));
     }
 
-    console.log("permissions", req.objKey.permissions);
     const validPermission = req.objKey.permissions.includes(permissions);
     if (!validPermission) {
-      return res.status(403).json({ message: "Permission denied" });
+      log.warn("Permission denied", {
+        required: permissions,
+        has: req.objKey.permissions,
+      });
+      return next(new ForbiddenError("Permission denied"));
     }
     return next();
   };

@@ -4,12 +4,25 @@ import { reasonPhrases } from "@/common/constants/reasonPhrases.js";
 import { statusCodes } from "@/common/constants/statusCodes.js";
 
 class ErrorResponse extends Error {
+  /**
+   * isOperational = true  -> lỗi nghiệp vụ dự đoán trước được (sai input, trùng email,
+   *                          hết quyền...).
+   * isOperational = false -> lỗi hệ thống/bug không lường trước (DB down, null pointer...).
+   *                          Phải log đầy đủ stack trace ở mức "error" để điều tra,
+   */
+  public isOperational: boolean;
+  public cause?: unknown;
+
   constructor(
     message: string,
     public status: number,
+    options?: { isOperational?: boolean; cause?: unknown },
   ) {
     super(message);
     this.status = status;
+    this.isOperational = options?.isOperational ?? true;
+    this.cause = options?.cause;
+    Error.captureStackTrace(this, this.constructor);
   }
 }
 
@@ -31,6 +44,15 @@ class BadRequestError extends ErrorResponse {
   }
 }
 
+class ForbiddenError extends ErrorResponse {
+  constructor(
+    message: string = reasonPhrases.FORBIDDEN,
+    statusCode: number = statusCodes.FORBIDDEN,
+  ) {
+    super(message, statusCode);
+  }
+}
+
 class NotFoundError extends ErrorResponse {
   constructor(
     message: string = reasonPhrases.NOT_FOUND,
@@ -44,14 +66,18 @@ class InternalServerError extends ErrorResponse {
   constructor(
     message: string = reasonPhrases.INTERNAL_SERVER_ERROR,
     statusCode: number = statusCodes.INTERNAL_SERVER_ERROR,
+    cause?: unknown,
   ) {
-    super(message, statusCode);
+    // 500 mặc định coi là lỗi hệ thống (isOperational: false)
+    super(message, statusCode, { isOperational: false, cause });
   }
 }
 
 export {
+  ErrorResponse,
   ConflictRequestError,
   BadRequestError,
+  ForbiddenError,
   NotFoundError,
   InternalServerError,
 };
