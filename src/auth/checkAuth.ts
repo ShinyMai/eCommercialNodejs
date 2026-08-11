@@ -4,11 +4,7 @@ import { findById } from "@/services/apiKey.service.js";
 import { NextFunction, Request, Response } from "express";
 import { ForbiddenError } from "@/core/error.response.js";
 import log from "@/helpers/logger.js";
-
-const HEADER = {
-  API_KEY: "x-api-key",
-  AUTHORIZATION: "authorization",
-};
+import { HEADER } from "@/common/constants/header.js";
 
 interface RequestWithObjKey extends Request {
   objKey?: {
@@ -60,10 +56,4 @@ const checkPermission = (permissions: string) => {
   };
 };
 
-const asyncHandler = (fn: Function) => {
-  return (req: Request, res: Response, next: NextFunction) => {
-    Promise.resolve(fn(req, res, next)).catch(next);
-  };
-};
-
-export { apiKey, checkPermission, asyncHandler };
+export { apiKey, checkPermission };

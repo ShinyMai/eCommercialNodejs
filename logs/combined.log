@@ -40,3 +40,25 @@
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T10:15:27.650Z"}
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-09T10:22:49.867Z"}
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:16:46.773Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:18:04.352Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:26:41.936Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:26:46.769Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:27:44.987Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:32:51.817Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:35:25.870Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:35:28.648Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:38:44.411Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:02.489Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:30.596Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:59.883Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:33.157Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:52.025Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:56.531Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:41:50.051Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:43:01.627Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:43:58.837Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:09.437Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:12.456Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:29.309Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/signup \u001b[32m201\u001b[0m 176.574 ms - 280\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-10T09:51:04.087Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/login \u001b[32m200\u001b[0m 448.390 ms - 263\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-10T09:51:24.045Z"}

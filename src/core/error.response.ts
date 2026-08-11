@@ -44,6 +44,15 @@ class BadRequestError extends ErrorResponse {
   }
 }
 
+class AuthFailureError extends ErrorResponse {
+  constructor(
+    message: string = reasonPhrases.UNAUTHORIZED,
+    statusCode: number = statusCodes.UNAUTHORIZED,
+  ) {
+    super(message, statusCode);
+  }
+}
+
 class ForbiddenError extends ErrorResponse {
   constructor(
     message: string = reasonPhrases.FORBIDDEN,
@@ -80,4 +89,5 @@ export {
   ForbiddenError,
   NotFoundError,
   InternalServerError,
+  AuthFailureError,
 };

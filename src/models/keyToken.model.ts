@@ -19,15 +19,25 @@ const keyTokenSchema = new Schema(
       required: true,
       unique: true,
     },
-    refreshToken: {
+    privateKey: {
+      type: String,
+      required: true,
+      unique: true,
+    },
+    refreshTokenUsed: {
       type: Array,
       default: [],
+    },
+    refreshToken: {
+      type: String,
+      default: "",
+      required: true,
     },
   },
   {
     timestamps: true,
     collection: COLLECTION_NAME,
-  }
+  },
 );
 
 export default model(DOCUMENT_NAME, keyTokenSchema);

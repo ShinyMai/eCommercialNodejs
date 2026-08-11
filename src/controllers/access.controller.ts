@@ -12,6 +12,13 @@ class AccessController {
     });
   }
 
+  static async shopLogin(req: Request, res: Response, next: NextFunction) {
+    SuccessResponse.ok(res, {
+      message: "Shop logged in successfully",
+      metadata: await AccessService.login(req.body),
+    });
+  }
+
   static async createApiKey(req: Request, res: Response, next: NextFunction) {
     SuccessResponse.created(res, {
       message: "API key created successfully",
