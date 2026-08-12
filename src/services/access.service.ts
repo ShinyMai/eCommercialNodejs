@@ -89,8 +89,6 @@ export default class AccessService {
 
       if (!keyTokenCreated) {
         await AccessService.rollbackShop(createdShopId);
-        // Lỗi hạ tầng thật sự (ghi DB thất bại) -> không phải lỗi do người dùng nhập sai
-        // nên vẫn là InternalServerError (isOperational: false), sẽ được log ở mức "error".
         throw new InternalServerError(
           "Failed to create key token for the shop",
         );
@@ -107,16 +105,10 @@ export default class AccessService {
         await AccessService.rollbackShop(createdShopId);
       }
 
-      // Lỗi đã được nhận diện từ trước (BadRequestError, ConflictRequestError...)
-      // -> throw lại NGUYÊN VẸN để giữ đúng status code & message cho client
-      // (KHÔNG ép thành InternalServerError/500 như code cũ, gây sai lệch response).
       if (error instanceof ErrorResponse) {
         throw error;
       }
 
-      // Chỉ những lỗi KHÔNG xác định trước (DB mất kết nối, bug...) mới log ở mức "error"
-      // và bọc lại thành InternalServerError để không lộ chi tiết nội bộ cho client.
-      // Không log `password` — chỉ log các trường an toàn để vẫn nhận diện được request nào lỗi.
       log.error("AccessService.signup", error, { email });
       throw new InternalServerError(
         "Something went wrong while creating the shop",
@@ -136,7 +128,7 @@ export default class AccessService {
     const foundShop = await findByEmail({ email });
     if (!foundShop) throw new BadRequestError("Shop not registered");
 
-    const match = bcrypt.compare(password, foundShop.password || "");
+    const match = await bcrypt.compare(password, foundShop.password || "");
     if (!match)
       throw new AuthFailureError("Authentication failed: Invalid password");
 
@@ -162,7 +154,17 @@ export default class AccessService {
         field: ["_id", "name", "email", "role"],
         object: foundShop,
       }),
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken,
     };
+  };
+
+  static logout = async (keyStoreId: string): Promise<void> => {
+    await KeyTokenService.removeKeyById(keyStoreId);
+  };
+
+  static handleRefreshToken = async (refreshToken: string) => {
+    return await KeyTokenService.refreshToken(refreshToken);
   };
 
   private static isEmailTaken = async (email: string): Promise<boolean> => {

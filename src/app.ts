@@ -2,6 +2,7 @@ import express from "express";
 import morgan from "morgan";
 import helmet from "helmet";
 import compression from "compression";
+import cookieParser from "cookie-parser";
 import DatabaseFactory from "@/dbs/db.factory.js";
 import checkOverload from "@/helpers/check.connect.js";
 import router from "@/routes/index.js";
@@ -22,6 +23,7 @@ app.use(helmet()); //security headers
 app.use(compression()); //reduce response size
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
+app.use(cookieParser());
 
 //init db
 DatabaseFactory.getDatabase("mongodb");
@@ -78,7 +80,7 @@ app.use(
       status: "error",
       code: statusCode,
       message: clientMessage,
-      requestId, // gửi kèm requestId khi báo lỗi -> tra log nhanh
+      requestId,
       timestamp: new Date().toISOString(),
     });
   },

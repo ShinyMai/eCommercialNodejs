@@ -2,7 +2,7 @@
 
 import { Router } from "express";
 import AccessController from "@/controllers/access.controller.js";
-import { asyncHandler } from "@/auth/checkAuth.js";
+import { asyncHandler } from "@/helpers/asyncHandler.js";
 
 const router = Router();
 

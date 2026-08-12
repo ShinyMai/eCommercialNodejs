@@ -6,6 +6,19 @@ import { asyncHandler } from "@/helpers/asyncHandler.js";
 import KeyTokenService from "@/services/keyToken.service.js";
 import { NextFunction, Response, Request } from "express";
 import jwt from "jsonwebtoken";
+import { Types } from "mongoose";
+
+interface RequestWithKeyStore extends Request {
+  keyStore?: {
+    _id: Types.ObjectId;
+    user: Types.ObjectId;
+    publicKey: string;
+    privateKey: string;
+    refreshTokenUsed: string[];
+    refreshToken: string;
+  };
+  userId?: string;
+}
 
 const createTokenPair = (
   payload: any,
@@ -35,13 +48,7 @@ const createTokenPair = (
 };
 
 const authentication = asyncHandler(
-  async (req: Request, res: Response, next: NextFunction) => {
-    //1. Check userId missing?
-    //2. Get accessToken, refreshToken
-    //3. Verify accessToken
-    //4. If accessToken expired => verify refreshToken => create new accessToken, refreshToken
-    //5. If refreshToken expired => throw error
-
+  async (req: RequestWithKeyStore, res: Response, next: NextFunction) => {
     const userId = req.headers[HEADER.CLIENT_ID]?.toString();
     if (!userId) {
       throw new AuthFailureError("Invalid request: Missing x-client-id header");
@@ -63,11 +70,16 @@ const authentication = asyncHandler(
         throw new AuthFailureError("Invalid request: User ID mismatch");
       }
       req.keyStore = keyStore;
+      req.userId = userId;
       return next();
     } catch (error) {
+      if (error instanceof Error && error.name === "TokenExpiredError") {
+        throw new AuthFailureError("Access token expired");
+      }
       throw error;
     }
   },
 );
 
-export { createTokenPair };
+export { createTokenPair, authentication };
+export type { RequestWithKeyStore };
