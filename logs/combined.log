@@ -81,3 +81,14 @@
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:27:22.365Z"}
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:27:40.015Z"}
 {"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:28:59.990Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T08:31:15.708Z"}
+{"level":"warn","message":"POST /v1/api/auth/logout -> 401 Invalid request: Missing access token","requestId":"3ca1d1bd-acee-48bb-a10a-d538447fd22b","service":"ecommerce-be","timestamp":"2026-08-12T08:39:26.116Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[33m401\u001b[0m 34.211 ms - 169\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:39:26.121Z"}
+{"level":"warn","message":"POST /v1/api/shop/login -> 401 Invalid request: Missing x-client-id header","requestId":"2c766c4f-e615-4dd6-950d-992d9c9ac270","service":"ecommerce-be","timestamp":"2026-08-12T08:41:01.617Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/login \u001b[33m401\u001b[0m 5.001 ms - 175\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:41:01.618Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 666.393 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:03.491Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[32m200\u001b[0m 7.314 ms - 171\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:14.931Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 155.397 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:25.093Z"}
+{"level":"error","message":"[POST /v1/api/auth/logout] invalid signature","name":"JsonWebTokenError","requestId":"1b37b4b9-9792-4b7a-87e7-237ffa9d4ce6","service":"ecommerce-be","stack":"JsonWebTokenError: invalid signature\n    at C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:171:19\n    at getSecret (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:97:14)\n    at module.exports [as verify] (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:101:10)\n    at <anonymous> (C:\\Projects\\eCommercialNodejs\\src\\auth\\authUtils.ts:68:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","timestamp":"2026-08-12T08:44:29.605Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[31m500\u001b[0m 5.963 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:29.606Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[32m200\u001b[0m 6.145 ms - 171\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:40.579Z"}

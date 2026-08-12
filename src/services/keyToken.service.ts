@@ -23,13 +23,6 @@ export default class KeyTokenService {
     refreshToken,
   }: CreateKeyTokenPayload): Promise<string | null> => {
     try {
-      //lv0
-      // const tokens = await keyTokenModel.create({
-      //   user: user.id,
-      //   publicKey: publicKey,
-      //   privateKey: privateKey,
-      // });
-
       const filter = { user: user.id };
       const update = {
         publicKey,

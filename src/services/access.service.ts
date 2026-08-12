@@ -61,8 +61,10 @@ export default class AccessService {
 
       createdShopId = newShop._id.toString();
 
+      // Tạo cặp privateKey & publicKey mới cho shop
       const { privateKey, publicKey } = AccessService.generateRsaKeyPair();
 
+      // Tạo cặp accessToken & refreshToken mới cho shop
       const tokens = await createTokenPair(
         {
           userId: newShop._id,
@@ -119,11 +121,9 @@ export default class AccessService {
   static login = async ({
     email,
     password,
-    refreshToken = "",
   }: {
     email: string;
     password: string;
-    refreshToken?: string;
   }) => {
     const foundShop = await findByEmail({ email });
     if (!foundShop) throw new BadRequestError("Shop not registered");
@@ -132,7 +132,10 @@ export default class AccessService {
     if (!match)
       throw new AuthFailureError("Authentication failed: Invalid password");
 
+    // Tạo cặp privateKey & publicKey mới cho mỗi lần đăng nhập
     const { privateKey, publicKey } = AccessService.generateRsaKeyPair();
+
+    // Tạo cặp accessToken & refreshToken mới cho mỗi lần đăng nhập
     const tokens = await createTokenPair(
       {
         userId: foundShop._id,
@@ -142,6 +145,7 @@ export default class AccessService {
       privateKey,
     );
 
+    // Lưu cặp publicKey & privateKey vào keyToken collection
     await KeyTokenService.createKeyToken({
       user: { id: foundShop._id.toString() },
       publicKey,
