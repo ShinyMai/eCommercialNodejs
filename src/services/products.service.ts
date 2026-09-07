@@ -52,21 +52,28 @@ class ElectronicsService extends ProductService {
 }
 
 class ProductFactory {
+  static productRegistry: Record<string, typeof ProductService> = {};
+
+  static registerProductType(type: string, classRef: typeof ProductService) {
+    ProductFactory.productRegistry[type] = classRef;
+  }
+
   static async createProduct(
     productType: Product["product_type"],
     payload: Product,
   ) {
-    switch (productType) {
-      case "Clothing":
-        return new ClothingService(payload).createProduct();
+    const productClass = ProductFactory.productRegistry[productType];
 
-      case "Electronics":
-        return new ElectronicsService(payload).createProduct();
-
-      default:
-        throw new Error(`Invalid product type: ${productType}`);
+    if (!productClass) {
+      throw new Error(`Product type ${productType} is not registered.`);
     }
+
+    return new productClass(payload).createProduct();
   }
 }
+
+// Register product types
+ProductFactory.registerProductType("Clothing", ClothingService);
+ProductFactory.registerProductType("Electronics", ElectronicsService);
 
 export { ProductFactory };
