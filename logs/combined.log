@@ -1,7 +1,113 @@
-{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-09-23T15:18:55.570Z"}
-{"level":"error","message":"[POST /v1/api/auth/signup] Cannot destructure property 'name' of 'undefined' as it is undefined.","name":"TypeError","requestId":"72fa5fe2-d47a-4118-a380-d98839f530e5","service":"ecommerce-be","stack":"TypeError: Cannot destructure property 'name' of 'undefined' as it is undefined.\n    at AccessService.signup (D:\\Project\\eCommercialNodejs\\src\\services\\access.service.ts:41:5)\n    at shopSignup (D:\\Project\\eCommercialNodejs\\src\\controllers\\access.controller.ts:53:37)\n    at <anonymous> (D:\\Project\\eCommercialNodejs\\src\\helpers\\asyncHandler.ts:5:21)\n    at Layer.handleRequest (D:\\Project\\eCommercialNodejs\\node_modules\\router\\lib\\layer.js:152:17)\n    at next (D:\\Project\\eCommercialNodejs\\node_modules\\router\\lib\\route.js:157:13)\n    at Route.dispatch (D:\\Project\\eCommercialNodejs\\node_modules\\router\\lib\\route.js:117:3)\n    at handle (D:\\Project\\eCommercialNodejs\\node_modules\\router\\index.js:435:11)\n    at Layer.handleRequest (D:\\Project\\eCommercialNodejs\\node_modules\\router\\lib\\layer.js:152:17)\n    at D:\\Project\\eCommercialNodejs\\node_modules\\router\\index.js:295:15\n    at processParams (D:\\Project\\eCommercialNodejs\\node_modules\\router\\index.js:582:12)","timestamp":"2026-09-23T15:22:09.105Z"}
-{"level":"info","message":"\u001b[0mPOST /v1/api/auth/signup \u001b[31m500\u001b[0m 35.353 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-09-23T15:22:09.136Z"}
-{"level":"info","message":"\u001b[0mPOST /v1/api/auth/signup \u001b[32m201\u001b[0m 517.671 ms - 269\u001b[0m","service":"ecommerce-be","timestamp":"2026-09-23T15:24:23.987Z"}
-{"level":"warn","message":"POST /v1/api/auth/login -> 400 Shop not registered","requestId":"7c0c32f9-04f8-4a1b-9523-f3d17819a38a","service":"ecommerce-be","timestamp":"2026-09-23T15:25:02.637Z"}
-{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[33m400\u001b[0m 16.105 ms - 151\u001b[0m","service":"ecommerce-be","timestamp":"2026-09-23T15:25:02.641Z"}
-{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 443.735 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-09-23T15:25:43.582Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:39:38.440Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:39:45.391Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:39:50.194Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:41:45.449Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:41:53.200Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:42:22.271Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T08:42:39.025Z"}
+{"level":"warn","message":"POST /v1/api/shop/signup -> 400 Email is already taken","requestId":"9ec5dd2a-da0d-4ebd-8736-fb6209e1de3e","service":"ecommerce-be","timestamp":"2026-08-07T08:44:59.347Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/signup \u001b[33m400\u001b[0m 36.651 ms - 115\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-07T08:44:59.351Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:12:04.793Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:15:21.403Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:15:44.799Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:16:12.429Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:16:56.619Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:18:44.674Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:19:31.633Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:25:02.740Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:26:14.580Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:29:10.653Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:30:43.131Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:31:43.099Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:32:00.897Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:32:39.654Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:32:49.570Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:33:15.269Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/signup \u001b[32m201\u001b[0m 471.969 ms - 280\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-07T09:33:30.012Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:35:02.193Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:36:30.954Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:39:16.473Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:42:20.297Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:46:13.591Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:46:14.762Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:46:29.529Z"}
+{"level":"info","message":"API key created","permissions":"READ","requestId":"c6e422dd-e94a-4102-b62f-6330fe1ce83e","service":"ecommerce-be","timestamp":"2026-08-07T09:46:30.621Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/create/key \u001b[32m201\u001b[0m 19.913 ms - 468\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-07T09:46:30.624Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T09:59:33.305Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/signup \u001b[32m201\u001b[0m 906.770 ms - 280\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-07T10:00:03.999Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T10:02:19.194Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T10:02:33.761Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-07T10:15:27.650Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-09T10:22:49.867Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:16:46.773Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:18:04.352Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:26:41.936Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:26:46.769Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:27:44.987Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:32:51.817Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:35:25.870Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:35:28.648Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:38:44.411Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:02.489Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:30.596Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:39:59.883Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:33.157Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:52.025Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:40:56.531Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:41:50.051Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:43:01.627Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:43:58.837Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:09.437Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:12.456Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-10T09:49:29.309Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/signup \u001b[32m201\u001b[0m 176.574 ms - 280\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-10T09:51:04.087Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/login \u001b[32m200\u001b[0m 448.390 ms - 263\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-10T09:51:24.045Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T03:49:01.292Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T03:51:03.474Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T03:51:56.962Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T03:54:04.441Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T03:54:28.203Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:05:12.582Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:06:03.012Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:06:46.054Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:15:24.758Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:19:53.438Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:19:57.951Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:20:42.628Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:24:45.965Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:25:07.908Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:25:54.830Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:25:57.301Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:27:22.365Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:27:40.015Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T04:28:59.990Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-12T08:31:15.708Z"}
+{"level":"warn","message":"POST /v1/api/auth/logout -> 401 Invalid request: Missing access token","requestId":"3ca1d1bd-acee-48bb-a10a-d538447fd22b","service":"ecommerce-be","timestamp":"2026-08-12T08:39:26.116Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[33m401\u001b[0m 34.211 ms - 169\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:39:26.121Z"}
+{"level":"warn","message":"POST /v1/api/shop/login -> 401 Invalid request: Missing x-client-id header","requestId":"2c766c4f-e615-4dd6-950d-992d9c9ac270","service":"ecommerce-be","timestamp":"2026-08-12T08:41:01.617Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/shop/login \u001b[33m401\u001b[0m 5.001 ms - 175\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:41:01.618Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 666.393 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:03.491Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[32m200\u001b[0m 7.314 ms - 171\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:14.931Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 155.397 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:25.093Z"}
+{"level":"error","message":"[POST /v1/api/auth/logout] invalid signature","name":"JsonWebTokenError","requestId":"1b37b4b9-9792-4b7a-87e7-237ffa9d4ce6","service":"ecommerce-be","stack":"JsonWebTokenError: invalid signature\n    at C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:171:19\n    at getSecret (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:97:14)\n    at module.exports [as verify] (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:101:10)\n    at <anonymous> (C:\\Projects\\eCommercialNodejs\\src\\auth\\authUtils.ts:68:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","timestamp":"2026-08-12T08:44:29.605Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[31m500\u001b[0m 5.963 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:29.606Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[32m200\u001b[0m 6.145 ms - 171\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T08:44:40.579Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 1189.690 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T09:53:38.229Z"}
+{"level":"error","message":"[POST /v1/api/auth/refresh-token] Unexpected token '\"', \"\"{\\n  \\\"re\"... is not valid JSON","name":"SyntaxError","requestId":"eede260f-a2fe-4fc5-b194-6e8d2bcec24b","service":"ecommerce-be","stack":"SyntaxError: Unexpected token '\"', \"\"{\\n  \\\"re\"... is not valid JSON\n    at JSON.parse (<anonymous>)\n    at createStrictSyntaxError (C:\\Projects\\eCommercialNodejs\\node_modules\\body-parser\\lib\\types\\json.js:109:10)\n    at parse (C:\\Projects\\eCommercialNodejs\\node_modules\\body-parser\\lib\\types\\json.js:66:15)\n    at C:\\Projects\\eCommercialNodejs\\node_modules\\body-parser\\lib\\read.js:162:18\n    at AsyncResource.runInAsyncScope (node:async_hooks:227:14)\n    at invokeCallback (C:\\Projects\\eCommercialNodejs\\node_modules\\raw-body\\index.js:238:16)\n    at done (C:\\Projects\\eCommercialNodejs\\node_modules\\raw-body\\index.js:227:7)\n    at IncomingMessage.onEnd (C:\\Projects\\eCommercialNodejs\\node_modules\\raw-body\\index.js:287:7)\n    at IncomingMessage.emit (node:events:509:28)\n    at endReadableNT (node:internal/streams/readable:1735:12)","timestamp":"2026-08-12T09:54:53.847Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/refresh-token \u001b[31m500\u001b[0m 11.836 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T09:54:53.848Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/refresh-token \u001b[32m200\u001b[0m 24.268 ms - 1008\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-12T09:55:44.531Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-16T17:24:05.818Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-16T17:26:38.541Z"}
+{"db":"shopDEV","level":"info","message":"DB connected [dev]","service":"ecommerce-be","timestamp":"2026-08-16T17:28:38.036Z"}
+{"level":"error","message":"[POST /v1/product/create/product] jwt malformed","name":"JsonWebTokenError","requestId":"9aa14f14-7b6f-44e0-9855-0297d818bc17","service":"ecommerce-be","stack":"JsonWebTokenError: jwt malformed\n    at module.exports [as verify] (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:70:17)\n    at <anonymous> (C:\\Projects\\eCommercialNodejs\\src\\auth\\authUtils.ts:68:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","timestamp":"2026-08-16T17:29:34.876Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/product/create/product \u001b[31m500\u001b[0m 56.501 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:29:34.880Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 1478.614 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:30:11.416Z"}
+{"level":"warn","message":"POST /v1/product/create/product -> 404 Route POST /v1/product/create/product not found","requestId":"62393955-564a-4a39-a993-67299b0fb2a6","service":"ecommerce-be","timestamp":"2026-08-16T17:31:04.169Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/product/create/product \u001b[33m404\u001b[0m 9.950 ms - 179\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:31:04.170Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/product/create \u001b[32m201\u001b[0m 17.809 ms - 664\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:31:16.785Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 367.229 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:32:53.372Z"}
+{"level":"error","message":"[POST /v1/api/auth/logout] jwt malformed","name":"JsonWebTokenError","requestId":"36adf06f-7d03-4f6c-8857-4c93118d6196","service":"ecommerce-be","stack":"JsonWebTokenError: jwt malformed\n    at module.exports [as verify] (C:\\Projects\\eCommercialNodejs\\node_modules\\jsonwebtoken\\verify.js:70:17)\n    at <anonymous> (C:\\Projects\\eCommercialNodejs\\src\\auth\\authUtils.ts:68:30)\n    at process.processTicksAndRejections (node:internal/process/task_queues:104:5)","timestamp":"2026-08-16T17:34:14.406Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[31m500\u001b[0m 5.630 ms - 153\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:34:14.407Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 356.914 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:34:30.232Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/logout \u001b[32m200\u001b[0m 44.263 ms - 171\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:34:57.202Z"}
+{"level":"info","message":"\u001b[0mPOST /v1/api/auth/login \u001b[32m200\u001b[0m 1181.187 ms - -\u001b[0m","service":"ecommerce-be","timestamp":"2026-08-16T17:36:35.202Z"}
