@@ -49,7 +49,7 @@ const productsModel = new Schema(
 );
 
 //Document middleware: runs before .save() and .create()
-productsModel.pre("save", function (next) {
+productsModel.pre("save", function () {
   this.product_slug = slugify(this.product_name, { lower: true });
 });
 
