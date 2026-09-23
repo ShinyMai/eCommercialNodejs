@@ -3,7 +3,7 @@
 import { ProductFactory } from "@/services/products.service.js";
 import { SuccessResponse } from "@/core/success.response.js";
 import { Request, Response } from "express";
-import {HEADER} from "@/common/constants/header.js";
+import { HEADER } from "@/common/constants/header.js";
 
 class ProductController {
   static async createProduct(req: Request, res: Response) {
@@ -21,7 +21,7 @@ class ProductController {
       message: "Product published successfully",
       metadata: await ProductFactory.publicationProduct({
         product_shop: req.header(HEADER.CLIENT_ID) as string,
-        product_id: req.body.product_id
+        product_id: req.body.product_id,
       }),
     });
   }
@@ -31,7 +31,7 @@ class ProductController {
       message: "Product unpublished successfully",
       metadata: await ProductFactory.unPublicationProduct({
         product_shop: req.header(HEADER.CLIENT_ID) as string,
-        product_id: req.body.product_id
+        product_id: req.body.product_id,
       }),
     });
   }
@@ -64,6 +64,21 @@ class ProductController {
 
     SuccessResponse.ok(res, {
       message: "Published products retrieved successfully",
+      metadata: drafts,
+    });
+  }
+
+  static async getListSearchProducts(req: Request, res: Response) {
+    const { limit, skip } = req.query;
+
+    const drafts = await ProductFactory.searchProducts({
+      keySearch: req.params.keySearch as string,
+      limit: Number(limit) || 10,
+      skip: Number(skip) || 0,
+    });
+
+    SuccessResponse.ok(res, {
+      message: "Search products retrieved successfully",
       metadata: drafts,
     });
   }

@@ -15,7 +15,7 @@ router.use(apiKey);
 //check permission
 router.use(checkPermission("READ"));
 
+router.use("/v1/api/product", productRouter);
 router.use("/v1/api", authRouter);
-router.use("/v1/product", productRouter);
 
 export default router;

@@ -48,6 +48,9 @@ const productsModel = new Schema(
   },
 );
 
+// Add text index for search functionality
+productsModel.index({ product_name: "text", product_description: "text" }); // add text index for search functionality
+
 //Document middleware: runs before .save() and .create()
 productsModel.pre("save", function () {
   this.product_slug = slugify(this.product_name, { lower: true });
