@@ -9,7 +9,7 @@ const isDev = (process.env.NODE_ENV || "dev") !== "prod";
 
 class MongoDB implements IDatabase {
   private static instance: MongoDB;
-  private readonly connectString: string = `mongodb://${config.db.host}:${config.db.port}/${config.db.name}`;
+  private readonly connectString: string = `mongodb://${config.db.user}:${config.db.password}@${config.db.host}:${config.db.port}/${config.db.name}?authSource=admin`;
 
   private constructor() {
     this.connect();
