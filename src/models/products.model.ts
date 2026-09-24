@@ -19,7 +19,7 @@ const productsModel = new Schema(
       required: true,
       enum: ["Electronics", "Clothing"],
     },
-    product_shop: { type: Schema.Types.ObjectId, ref: "shop", required: true },
+    product_shop: { type: Schema.Types.ObjectId, ref: "Shop", required: true },
     product_attributes: { type: Schema.Types.Mixed, required: true },
     product_ratingAverage: {
       type: Number,
@@ -50,6 +50,8 @@ const productsModel = new Schema(
 
 // Add text index for search functionality
 productsModel.index({ product_name: "text", product_description: "text" }); // add text index for search functionality
+productsModel.index({ product_shop: 1, isDraft: 1, createdAt: -1 });
+productsModel.index({ product_shop: 1, isPublished: 1, createdAt: -1 });
 
 //Document middleware: runs before .save() and .create()
 productsModel.pre("save", function () {
@@ -71,8 +73,8 @@ const clothingModel = new Schema(
 const electronicsModel = new Schema(
   {
     manufacturer: { type: String, required: true },
-    model: { type: Number, required: true },
-    color: { type: Number, required: true },
+    model: { type: String, required: true },
+    color: { type: String, required: true },
   },
   {
     collection: "electronics",

@@ -1,42 +1,34 @@
 "use strict";
 
 import mongoose from "mongoose";
-import { IDatabase } from "@/dbs/interfaces/db.interface.js";
-import config from "@/configs/config.mongodb.js";
-import log from "@/helpers/logger.js";
+import config from "#/configs/index.js";
+import log from "#/helpers/logger.js";
 
-const isDev = (process.env.NODE_ENV || "dev") !== "prod";
+let connectionPromise: Promise<void> | undefined;
 
-class MongoDB implements IDatabase {
-  private static instance: MongoDB;
-  private readonly connectString: string = `mongodb://${config.db.user}:${config.db.password}@${config.db.host}:${config.db.port}/${config.db.name}?authSource=admin`;
+const connect = (): Promise<void> => {
+  if (mongoose.connection.readyState === 1) return Promise.resolve();
+  if (connectionPromise) return connectionPromise;
 
-  private constructor() {
-    this.connect();
-  }
+  mongoose.set("debug", config.db.debug ? { color: true } : false);
+  connectionPromise = mongoose
+    .connect(config.db.uri)
+    .then(() => {
+      log.info(`DB connected [${config.environment}]`, {
+        db: config.db.name,
+      });
+    })
+    .catch((error) => {
+      connectionPromise = undefined;
+      throw error;
+    });
 
-  connect(): void {
-    if (isDev) {
-      mongoose.set("debug", true);
-      mongoose.set("debug", { color: true });
-    }
+  return connectionPromise;
+};
 
-    mongoose
-      .connect(this.connectString)
-      .then(() =>
-        log.info(`DB connected [${process.env.NODE_ENV || "dev"}]`, {
-          db: config.db.name,
-        }),
-      )
-      .catch((e) => log.error("MongoDB.connect", e, { db: config.db.name }));
-  }
+const disconnect = async (): Promise<void> => {
+  connectionPromise = undefined;
+  await mongoose.disconnect();
+};
 
-  static getInstance() {
-    if (!MongoDB.instance) {
-      MongoDB.instance = new MongoDB();
-    }
-    return MongoDB.instance;
-  }
-}
-
-export default MongoDB;
+export default { connect, disconnect };

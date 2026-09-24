@@ -1,132 +1,62 @@
 "use strict";
 
-import { ProductModel } from "@/models/products.model.js";
-import { Types } from "mongoose";
+import { getSelectData } from "#/common/utils/index.js";
+import { ProductModel } from "#/models/products.model.js";
+import { SortOrder, Types } from "mongoose";
 
-export interface FindAllDraftsForShopParams {
-  query?: Record<string, any>;
-  keySearch?: string;
+export interface FindProductsParams {
+  filter?: Record<string, unknown>;
+  search?: string;
   limit: number;
   skip: number;
+  sort?: "newest" | "oldest";
+  select?: string[];
 }
 
-const queryProduct = async ({
-  query,
+const findProducts = ({
+  filter = {},
+  search,
   limit,
   skip,
-}: FindAllDraftsForShopParams) => {
-  return await ProductModel.find(query)
+  sort = "newest",
+  select,
+}: FindProductsParams) => {
+  const query = search
+    ? { ...filter, $text: { $search: search } }
+    : filter;
+  const sortBy: Record<string, SortOrder | { $meta: "textScore" }> = search
+    ? { score: { $meta: "textScore" } }
+    : { createdAt: sort === "newest" ? -1 : 1 };
+  const projection = search ? { score: { $meta: "textScore" } } : undefined;
+
+  return ProductModel.find(query, projection)
     .populate("product_shop", "name email -_id")
-    .sort({ updateAt: -1 })
+    .sort(sortBy)
     .skip(skip)
     .limit(limit)
+    .select(select ? getSelectData({ select }) : {})
     .lean()
     .exec();
 };
 
-const findAllDraftsForShop = async ({
-  query,
-  limit,
-  skip,
-}: FindAllDraftsForShopParams) => {
-  return await queryProduct({ query, limit, skip });
-};
-
-const findAllPublishedForShop = async ({
-  query,
-  limit,
-  skip,
-}: FindAllDraftsForShopParams) => {
-  return await queryProduct({ query, limit, skip });
-};
-
-const searchProductByUser = async ({
-  keySearch,
-  limit,
-  skip,
-}: FindAllDraftsForShopParams) => {
-  const regex = new RegExp(keySearch || "", "i"); // Case-insensitive regex for searching
-  const results = await ProductModel.find(
-    {
-      isPublished: true,
-      $text: { $search: regex.source }, // Use text index for searching
-    },
-    { score: { $meta: "textScore" } }, // Use text index for searching
-  )
-    .populate("product_shop", "name email -_id")
-    .sort({
-      score: { $meta: "textScore" },
-    })
-    .skip(skip)
-    .limit(limit)
-    .lean()
-    .exec();
-
-  return results;
-};
-
-const publicationProduct = async ({
-  product_id,
-  product_shop,
+const setProductsPublication = async ({
+  productIds,
+  shopId,
+  isPublished,
 }: {
-  product_id: string[];
-  product_shop: string;
+  productIds: string[];
+  shopId: string;
+  isPublished: boolean;
 }) => {
-  const shop = await ProductModel.findOne({
-    product_shop: new Types.ObjectId(product_shop),
-  })
-    .lean()
-    .exec();
-
-  if (!shop) {
-    return { modifiedCount: 0, success: false };
-  }
-  shop.isDraft = false;
-  shop.isPublished = true;
-
-  const { modifiedCount } = await ProductModel.updateMany(
+  const { matchedCount, modifiedCount } = await ProductModel.updateMany(
     {
-      product_shop: new Types.ObjectId(product_shop),
-      _id: { $in: product_id.map((id) => new Types.ObjectId(id)) },
+      product_shop: new Types.ObjectId(shopId),
+      _id: { $in: productIds.map((id) => new Types.ObjectId(id)) },
     },
-    shop,
+    { $set: { isDraft: !isPublished, isPublished } },
   ).exec();
-  return { modifiedCount, success: modifiedCount > 0 };
+
+  return { matchedCount, modifiedCount };
 };
 
-const unPublicationProduct = async ({
-  product_id,
-  product_shop,
-}: {
-  product_id: string[];
-  product_shop: string;
-}) => {
-  const shop = await ProductModel.findOne({
-    product_shop: new Types.ObjectId(product_shop),
-  })
-    .lean()
-    .exec();
-
-  if (!shop) {
-    return { modifiedCount: 0, success: false };
-  }
-  shop.isDraft = true;
-  shop.isPublished = false;
-
-  const { modifiedCount } = await ProductModel.updateMany(
-    {
-      product_shop: new Types.ObjectId(product_shop),
-      _id: { $in: product_id.map((id) => new Types.ObjectId(id)) },
-    },
-    shop,
-  ).exec();
-  return { modifiedCount, success: modifiedCount > 0 };
-};
-
-export {
-  findAllDraftsForShop,
-  findAllPublishedForShop,
-  publicationProduct,
-  unPublicationProduct,
-  searchProductByUser,
-};
+export { findProducts, setProductsPublication };

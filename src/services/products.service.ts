@@ -5,145 +5,141 @@ import {
   ElectronicsModel,
   Product,
   ProductModel,
-} from "@/models/products.model.js";
+} from "#/models/products.model.js";
 import {
-  findAllDraftsForShop,
-  findAllPublishedForShop,
-  publicationProduct,
-  searchProductByUser,
-  unPublicationProduct,
-} from "@/models/repositories/product.repo.js";
+  findProducts,
+  setProductsPublication,
+} from "#/models/repositories/product.repo.js";
+import { BadRequestError, NotFoundError } from "#/core/error.response.js";
+import { Model, Types } from "mongoose";
 
-class ProductService {
-  constructor(protected product: Product) {}
-
-  async createProduct() {
-    return ProductModel.create(this.product);
-  }
-}
-
-class ClothingService extends ProductService {
-  async createProduct() {
-    const newClothing = await ClothingModel.create(
-      this.product.product_attributes,
-    );
-    if (!newClothing) {
-      throw new Error("Failed to create clothing product attributes");
-    }
-
-    const newProduct = await super.createProduct();
-    if (!newProduct) {
-      throw new Error("Failed to create product");
-    }
-
-    return newProduct;
-  }
-}
-
-class ElectronicsService extends ProductService {
-  async createProduct() {
-    const newElectronics = await ElectronicsModel.create(
-      this.product.product_attributes,
-    );
-    if (!newElectronics) {
-      throw new Error("Failed to create electronics product attributes");
-    }
-
-    const newProduct = await super.createProduct();
-    if (!newProduct) {
-      throw new Error("Failed to create product");
-    }
-
-    return newProduct;
-  }
-}
+type ProductType = Product["product_type"];
+type ProductPayload = Product & { product_shop: Types.ObjectId | string };
 
 class ProductFactory {
-  static productRegistry: Record<string, typeof ProductService> = {};
+  private static readonly productRegistry = new Map<
+    ProductType,
+    Model<unknown>
+  >();
 
-  static registerProductType(type: string, classRef: typeof ProductService) {
-    ProductFactory.productRegistry[type] = classRef;
+  static registerProductType(type: ProductType, model: Model<unknown>) {
+    ProductFactory.productRegistry.set(type, model);
   }
 
-  //POST
-  static async createProduct(
-    productType: Product["product_type"],
-    payload: Product,
-  ) {
-    const productClass = ProductFactory.productRegistry[productType];
-
-    if (!productClass) {
-      throw new Error(`Product type ${productType} is not registered.`);
+  static async createProduct(productType: ProductType, payload: ProductPayload) {
+    const attributeModel = ProductFactory.productRegistry.get(productType);
+    if (!attributeModel) {
+      throw new BadRequestError(`Unsupported product type: ${productType}`);
     }
 
-    return new productClass(payload).createProduct();
+    const attributes = await attributeModel.create(payload.product_attributes);
+    try {
+      return await ProductModel.create({
+        ...payload,
+        product_attributes: attributes.toObject(),
+      });
+    } catch (error) {
+      await attributeModel
+        .deleteOne({ _id: attributes._id })
+        .catch(() => undefined);
+      throw error;
+    }
   }
 
-  //PUT
-  static async publicationProduct({
-    product_shop,
-    product_id,
+  static async setPublication({
+    shopId,
+    productIds,
+    isPublished,
   }: {
-    product_shop: string;
-    product_id: string[];
+    shopId: string;
+    productIds: string[];
+    isPublished: boolean;
   }) {
-    return await publicationProduct({ product_shop, product_id });
+    if (
+      !Types.ObjectId.isValid(shopId) ||
+      productIds.length === 0 ||
+      productIds.some((id) => !Types.ObjectId.isValid(id))
+    ) {
+      throw new BadRequestError("Invalid shop or product ID");
+    }
+
+    const result = await setProductsPublication({
+      shopId,
+      productIds,
+      isPublished,
+    });
+    if (result.matchedCount === 0) {
+      throw new NotFoundError("No matching products found for this shop");
+    }
+    return result;
   }
 
-  static async unPublicationProduct({
-    product_shop,
-    product_id,
+  static listShopProducts({
+    shopId,
+    status,
+    limit,
+    skip,
   }: {
-    product_shop: string;
-    product_id: string[];
-  }) {
-    return await unPublicationProduct({ product_shop, product_id });
-  }
-
-  //GET
-  static async findAllDraftsForShop({
-    product_shop,
-    limit = 50,
-    skip = 0,
-  }: {
-    product_shop: string;
+    shopId: string;
+    status: "draft" | "published" | "all";
     limit: number;
     skip: number;
   }) {
-    const query = { product_shop, isDraft: true };
+    if (!Types.ObjectId.isValid(shopId)) {
+      throw new BadRequestError("Invalid shop ID");
+    }
+    const statusFilter =
+      status === "all"
+        ? {}
+        : status === "published"
+          ? { isPublished: true }
+          : { isDraft: true };
 
-    return await findAllDraftsForShop({ query, limit, skip });
+    return findProducts({
+      filter: {
+        product_shop: new Types.ObjectId(shopId),
+        ...statusFilter,
+      },
+      limit,
+      skip,
+    });
   }
 
-  static async findAllPublishedForShop({
-    product_shop,
-    limit = 50,
-    skip = 0,
+  static listPublishedProducts({
+    search,
+    limit,
+    skip,
+    sort = "newest",
   }: {
-    product_shop: string;
+    search?: string;
     limit: number;
     skip: number;
+    sort?: "newest" | "oldest";
   }) {
-    const query = { product_shop, isPublished: true };
-
-    return await findAllPublishedForShop({ query, limit, skip });
-  }
-
-  static async searchProducts({
-    keySearch,
-    limit = 50,
-    skip = 0,
-  }: {
-    keySearch: string;
-    limit: number;
-    skip: number;
-  }) {
-    return await searchProductByUser({ keySearch, limit, skip });
+    return findProducts({
+      filter: { isPublished: true },
+      search,
+      limit,
+      skip,
+      sort,
+      select: [
+        "product_name",
+        "product_price",
+        "product_thumbnail",
+        "product_slug",
+        "product_shop",
+      ],
+    });
   }
 }
 
-// Register product types
-ProductFactory.registerProductType("Clothing", ClothingService);
-ProductFactory.registerProductType("Electronics", ElectronicsService);
+ProductFactory.registerProductType(
+  "Clothing",
+  ClothingModel as Model<unknown>,
+);
+ProductFactory.registerProductType(
+  "Electronics",
+  ElectronicsModel as Model<unknown>,
+);
 
 export { ProductFactory };

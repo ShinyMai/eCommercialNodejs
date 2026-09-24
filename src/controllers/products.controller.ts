@@ -1,85 +1,83 @@
 "use strict";
 
-import { ProductFactory } from "@/services/products.service.js";
-import { SuccessResponse } from "@/core/success.response.js";
+import { ProductFactory } from "#/services/products.service.js";
+import { SuccessResponse } from "#/core/success.response.js";
 import { Request, Response } from "express";
-import { HEADER } from "@/common/constants/header.js";
+import type { RequestWithKeyStore } from "#/auth/authUtils.js";
+import { getPagination } from "#/common/utils/index.js";
+import { BadRequestError } from "#/core/error.response.js";
 
 class ProductController {
-  static async createProduct(req: Request, res: Response) {
+  static async createProduct(req: RequestWithKeyStore, res: Response) {
     SuccessResponse.created(res, {
       message: "Product created successfully",
-      metadata: await ProductFactory.createProduct(
-        req.body.product_type,
-        req.body,
-      ),
-    });
-  }
-
-  static async publishProduct(req: Request, res: Response) {
-    SuccessResponse.created(res, {
-      message: "Product published successfully",
-      metadata: await ProductFactory.publicationProduct({
-        product_shop: req.header(HEADER.CLIENT_ID) as string,
-        product_id: req.body.product_id,
+      metadata: await ProductFactory.createProduct(req.body.product_type, {
+        ...req.body,
+        product_shop: req.userId,
       }),
     });
   }
 
-  static async unPublishProduct(req: Request, res: Response) {
-    SuccessResponse.created(res, {
-      message: "Product unpublished successfully",
-      metadata: await ProductFactory.unPublicationProduct({
-        product_shop: req.header(HEADER.CLIENT_ID) as string,
-        product_id: req.body.product_id,
+  static async setPublication(req: RequestWithKeyStore, res: Response) {
+    const productIds = req.body.productIds ?? req.body.product_id;
+    if (
+      !Array.isArray(productIds) ||
+      productIds.some((id) => typeof id !== "string") ||
+      typeof req.body.isPublished !== "boolean"
+    ) {
+      throw new BadRequestError("productIds and isPublished are required");
+    }
+
+    SuccessResponse.ok(res, {
+      message: `Products ${req.body.isPublished ? "published" : "unpublished"} successfully`,
+      metadata: await ProductFactory.setPublication({
+        shopId: String(req.userId),
+        productIds,
+        isPublished: req.body.isPublished,
       }),
     });
   }
 
-  static async findAllDraftsForShop(req: Request, res: Response) {
-    const { limit, skip } = req.query;
-    const product_shop = req.header(HEADER.CLIENT_ID) as string;
-
-    const drafts = await ProductFactory.findAllDraftsForShop({
-      product_shop,
-      limit: Number(limit) || 10,
-      skip: Number(skip) || 0,
-    });
+  static async listShopProducts(req: RequestWithKeyStore, res: Response) {
+    const { limit, page, skip } = getPagination(req.query);
+    const status = String(req.query.status ?? "all");
+    if (!["draft", "published", "all"].includes(status)) {
+      throw new BadRequestError("status must be draft, published, or all");
+    }
 
     SuccessResponse.ok(res, {
-      message: "Draft products retrieved successfully",
-      metadata: drafts,
+      message: "Shop products retrieved successfully",
+      metadata: {
+        items: await ProductFactory.listShopProducts({
+          shopId: String(req.userId),
+          status: status as "draft" | "published" | "all",
+          limit,
+          skip,
+        }),
+        pagination: { page, limit },
+      },
     });
   }
 
-  static async findAllPublishedForShop(req: Request, res: Response) {
-    const { limit, skip } = req.query;
-    const product_shop = req.header(HEADER.CLIENT_ID) as string;
-
-    const drafts = await ProductFactory.findAllPublishedForShop({
-      product_shop,
-      limit: Number(limit) || 10,
-      skip: Number(skip) || 0,
-    });
+  static async listPublishedProducts(req: Request, res: Response) {
+    const { limit, page, skip } = getPagination(req.query);
+    const sort = req.query.sort === "oldest" ? "oldest" : "newest";
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim() || undefined
+        : undefined;
 
     SuccessResponse.ok(res, {
-      message: "Published products retrieved successfully",
-      metadata: drafts,
-    });
-  }
-
-  static async getListSearchProducts(req: Request, res: Response) {
-    const { limit, skip } = req.query;
-
-    const drafts = await ProductFactory.searchProducts({
-      keySearch: req.params.keySearch as string,
-      limit: Number(limit) || 10,
-      skip: Number(skip) || 0,
-    });
-
-    SuccessResponse.ok(res, {
-      message: "Search products retrieved successfully",
-      metadata: drafts,
+      message: "Products retrieved successfully",
+      metadata: {
+        items: await ProductFactory.listPublishedProducts({
+          search,
+          limit,
+          skip,
+          sort,
+        }),
+        pagination: { page, limit },
+      },
     });
   }
 }

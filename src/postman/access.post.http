@@ -1,12 +1,50 @@
-### sign up
+@baseUrl = http://localhost:3052/v1/api
+@apiKey = replace-with-api-key
+@clientId = replace-with-shop-id
+@accessToken = replace-with-access-token
 
-@url_dev=http://localhost:3052/v1/api/
+### Health
+GET {{baseUrl}}/health
 
-POST {{url_dev}}/shop/signup
+### Create API key (x-bootstrap-key is required in production)
+POST {{baseUrl}}/keys
 Content-Type: application/json
+x-bootstrap-key: replace-with-bootstrap-key
 
 {
-    'name': 'Shop Shin',
-    'email': 'shopshin@gmail.com',
-    'password': 'abc123'
+  "permissions": ["READ", "WRITE"]
 }
+
+### Sign up
+POST {{baseUrl}}/auth/signup
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "name": "Shop Shin",
+  "email": "shopshin@gmail.com",
+  "password": "abc123"
+}
+
+### Log in
+POST {{baseUrl}}/auth/login
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{
+  "email": "shopshin@gmail.com",
+  "password": "abc123"
+}
+
+### Refresh token (uses the httpOnly cookie returned by login/signup)
+POST {{baseUrl}}/auth/refresh-token
+Content-Type: application/json
+x-api-key: {{apiKey}}
+
+{}
+
+### Log out
+POST {{baseUrl}}/auth/logout
+x-api-key: {{apiKey}}
+x-client-id: {{clientId}}
+Authorization: Bearer {{accessToken}}

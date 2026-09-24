@@ -16,16 +16,7 @@
     "skipLibCheck": true,
 
     "paths": {
-      "@/*": ["./src/*"],
-      "@/configs/*": ["./src/configs/*"],
-      "@/controllers/*": ["./src/controllers/*"],
-      "@/middlewares/*": ["./src/middlewares/*"],
-      "@/models/*": ["./src/models/*"],
-      "@/routes/*": ["./src/routes/*"],
-      "@/services/*": ["./src/services/*"],
-      "@/utils/*": ["./src/utils/*"],
-      "@/dbs/*": ["./src/dbs/*"],
-      "@/helpers/*": ["./src/helpers/*"]
+      "#/*": ["./src/*"]
     }
   }
 }
