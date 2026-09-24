@@ -1,8 +1,8 @@
 "use strict";
 
-import { reasonPhrases } from "@/common/constants/reasonPhrases.js";
-import { statusCodes } from "@/common/constants/statusCodes.js";
-import { getRequestId } from "@/helpers/request.context.js";
+import { reasonPhrases } from "#/common/constants/reasonPhrases.js";
+import { statusCodes } from "#/common/constants/statusCodes.js";
+import { getRequestId } from "#/helpers/request.context.js";
 import type { Response } from "express";
 
 interface SuccessPayload {

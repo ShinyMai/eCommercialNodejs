@@ -3,24 +3,29 @@
 import mongoose from "mongoose";
 import os from "os";
 import process from "process";
+import config from "#/configs/index.js";
+import log from "#/helpers/logger.js";
 
-const _SECONDS = 5000000;
-
-const checkOverload = () => {
-  setInterval(() => {
-    const numConnection = mongoose.connections.length;
+const startDatabaseMonitor = (): NodeJS.Timeout => {
+  const timer = setInterval(() => {
+    const activeConnections = mongoose.connections.filter(
+      ({ readyState }) => readyState === 1,
+    ).length;
     const numCores = os.cpus().length;
-    const memoryUsage = process.memoryUsage().rss;
+    const memoryUsageMb = Math.round(process.memoryUsage().rss / 1024 / 1024);
+    const maxConnections = numCores * 5;
 
-    console.log("Number of connections active: ", numConnection);
-    console.log(`Memory usage: ${memoryUsage / 1024 / 1024} bytes`);
-
-    //maximize the number of connections
-    const maxConnection = numCores * 5;
-    if (numConnection > maxConnection) {
-      console.log("Maximize the number of connections");
+    log.debug("Runtime health", { activeConnections, memoryUsageMb });
+    if (activeConnections > maxConnections) {
+      log.warn("Database connection count is above the expected threshold", {
+        activeConnections,
+        maxConnections,
+      });
     }
-  }, _SECONDS); //monitor every 5 minutes
+  }, config.db.monitorIntervalMs);
+
+  timer.unref();
+  return timer;
 };
 
-export default checkOverload;
+export default startDatabaseMonitor;

@@ -2,10 +2,9 @@
 
 import winston from "winston";
 import path from "path";
+import config from "#/configs/index.js";
 
 const { combine, timestamp, printf, colorize, errors, json } = winston.format;
-
-const isProd = process.env.NODE_ENV === "prod";
 
 // Format hiển thị log ở console
 const consoleFormat = combine(
@@ -23,24 +22,30 @@ const consoleFormat = combine(
 // Format lưu file: JSON để sau này dễ parse / đưa vào ELK, Grafana Loki...
 const fileFormat = combine(timestamp(), errors({ stack: true }), json());
 
+const fileTransports = config.logging.filesEnabled
+  ? [
+      new winston.transports.File({
+        filename: path.join(config.logging.directory, "error.log"),
+        level: "error",
+        format: fileFormat,
+        maxsize: 5 * 1024 * 1024,
+        maxFiles: 5,
+      }),
+      new winston.transports.File({
+        filename: path.join(config.logging.directory, "combined.log"),
+        format: fileFormat,
+        maxsize: 5 * 1024 * 1024,
+        maxFiles: 5,
+      }),
+    ]
+  : [];
+
 const logger = winston.createLogger({
-  level: isProd ? "info" : "debug",
+  level: config.logging.level,
   defaultMeta: { service: "ecommerce-be" },
   transports: [
     new winston.transports.Console({ format: consoleFormat }),
-    new winston.transports.File({
-      filename: path.join("logs", "error.log"),
-      level: "error",
-      format: fileFormat,
-      maxsize: 5 * 1024 * 1024, // 5MB
-      maxFiles: 5,
-    }),
-    new winston.transports.File({
-      filename: path.join("logs", "combined.log"),
-      format: fileFormat,
-      maxsize: 5 * 1024 * 1024,
-      maxFiles: 5,
-    }),
+    ...fileTransports,
   ],
   exitOnError: false,
 });

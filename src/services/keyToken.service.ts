@@ -1,56 +1,36 @@
 "use strict";
-import keyTokenModel from "@/models/keyToken.model.js";
-import log from "@/helpers/logger.js";
+
+import keyTokenModel from "#/models/keyToken.model.js";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
-import { AuthFailureError } from "@/core/error.response.js";
-import { createTokenPair } from "@/auth/authUtils.js";
+import { AuthFailureError } from "#/core/error.response.js";
+import { createTokenPair } from "#/auth/token.js";
 
 interface CreateKeyTokenPayload {
-  user: {
-    id: string;
-  };
+  user: { id: string };
   publicKey: string;
   privateKey: string;
   refreshToken: string;
 }
 
 export default class KeyTokenService {
-  static createKeyToken = async ({
+  static createKeyToken = ({
     user,
     publicKey,
     privateKey,
     refreshToken,
-  }: CreateKeyTokenPayload): Promise<string | null> => {
-    try {
-      const filter = { user: user.id };
-      const update = {
-        publicKey,
-        privateKey,
-        refreshTokenUsed: [],
-        refreshToken,
-      };
-      const options = { new: true, upsert: true }; // upsert: create a new document if it doesn't exist
-      const tokens = await keyTokenModel.findOneAndUpdate(
-        filter,
-        update,
-        options,
-      );
-
-      return tokens ? tokens.publicKey : null;
-    } catch (error) {
-      log.error("KeyTokenService.createKeyToken", error, { userId: user.id });
-      return null;
-    }
-  };
+  }: CreateKeyTokenPayload) =>
+    keyTokenModel.findOneAndUpdate(
+      { user: user.id },
+      { publicKey, privateKey, refreshTokenUsed: [], refreshToken },
+      { new: true, upsert: true, runValidators: true },
+    );
 
   static refreshToken = async (refreshToken: string) => {
     if (!refreshToken) {
       throw new AuthFailureError("Invalid request: Missing refresh token");
     }
 
-    // Nếu refreshToken này đã từng được dùng để refresh trước đó
-    // => nghi ngờ token bị đánh cắp và bị dùng lại, revoke toàn bộ keyStore của user này
     const usedTokenOwner = await keyTokenModel
       .findOne({ refreshTokenUsed: refreshToken })
       .lean();
@@ -66,43 +46,43 @@ export default class KeyTokenService {
       throw new AuthFailureError("Invalid request: Invalid refresh token");
     }
 
-    // Token được ký (sign) bằng privateKey (RS256) nên phải verify bằng publicKey tương ứng
-    const decode = jwt.verify(refreshToken, keyStore.publicKey) as {
-      userId: string;
-    };
-    if (String(keyStore.user) !== String(decode.userId)) {
+    let decoded: { userId: string };
+    try {
+      decoded = jwt.verify(refreshToken, keyStore.publicKey, {
+        algorithms: ["RS256"],
+      }) as { userId: string };
+    } catch {
+      throw new AuthFailureError("Invalid or expired refresh token");
+    }
+
+    if (String(keyStore.user) !== String(decoded.userId)) {
       throw new AuthFailureError("Invalid request: User ID mismatch");
     }
 
-    const newToken = await createTokenPair(
-      {
-        userId: keyStore.user,
-      },
+    const newToken = createTokenPair(
+      { userId: keyStore.user },
       keyStore.publicKey,
       keyStore.privateKey,
     );
-
-    await keyTokenModel.findOneAndUpdate(
-      { _id: keyStore._id },
+    const rotated = await keyTokenModel.findOneAndUpdate(
+      { _id: keyStore._id, refreshToken },
       {
         $push: { refreshTokenUsed: refreshToken },
-        refreshToken: newToken.refreshToken,
+        $set: { refreshToken: newToken.refreshToken },
       },
     );
+    if (!rotated) {
+      throw new AuthFailureError("Refresh token has already been rotated");
+    }
 
-    return {
-      accessToken: newToken.accessToken,
-      refreshToken: newToken.refreshToken,
-    };
+    return newToken;
   };
 
-  static findByUserId = async (userId: string) => {
-    return await keyTokenModel
-      .findOne({ user: new Types.ObjectId(userId) })
-      .lean();
+  static findByUserId = (userId: string) => {
+    if (!Types.ObjectId.isValid(userId)) return null;
+    return keyTokenModel.findOne({ user: new Types.ObjectId(userId) }).lean();
   };
 
-  static removeKeyById = async (id: Types.ObjectId | string) => {
-    return await keyTokenModel.deleteOne({ _id: id });
-  };
+  static removeKeyById = (id: Types.ObjectId | string) =>
+    keyTokenModel.deleteOne({ _id: id });
 }

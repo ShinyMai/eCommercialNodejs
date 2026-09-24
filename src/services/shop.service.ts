@@ -1,6 +1,6 @@
 "use strict";
 
-import shopModel from "@/models/shop.model.js";
+import shopModel from "#/models/shop.model.js";
 
 const findByEmail = async ({
   email,
@@ -14,7 +14,7 @@ const findByEmail = async ({
   email: string;
   select?: Record<string, number>;
 }) => {
-  return await shopModel.findOne({ email }).select(select).lean();
+  return shopModel.findOne({ email: email.toLowerCase() }).select(select).lean();
 };
 
 export { findByEmail };

@@ -1,7 +1,7 @@
 "use strict";
 
-import logger from "@/configs/logger.config.js";
-import { getRequestId } from "@/helpers/request.context.js";
+import logger from "#/configs/logger.config.js";
+import { getRequestId } from "#/helpers/request.context.js";
 
 type LogMeta = Record<string, unknown>;
 

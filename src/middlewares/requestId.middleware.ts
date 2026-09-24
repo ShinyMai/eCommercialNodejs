@@ -2,7 +2,7 @@
 
 import { randomUUID } from "crypto";
 import { NextFunction, Request, Response } from "express";
-import { runWithRequestContext } from "@/helpers/request.context.js";
+import { runWithRequestContext } from "#/helpers/request.context.js";
 
 const REQUEST_ID_HEADER = "x-request-id";
 
@@ -20,7 +20,11 @@ const requestIdMiddleware = (
   res: Response,
   next: NextFunction,
 ) => {
-  const requestId = (req.headers[REQUEST_ID_HEADER] as string) || randomUUID();
+  const incomingRequestId = req.header(REQUEST_ID_HEADER);
+  const requestId =
+    incomingRequestId && /^[a-zA-Z0-9._:-]{1,128}$/.test(incomingRequestId)
+      ? incomingRequestId
+      : randomUUID();
 
   (req as RequestWithId).requestId = requestId;
   res.setHeader(REQUEST_ID_HEADER, requestId);

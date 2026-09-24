@@ -1,9 +1,10 @@
 "use strict";
 
-import { HEADER } from "@/common/constants/header.js";
-import { AuthFailureError, NotFoundError } from "@/core/error.response.js";
-import { asyncHandler } from "@/helpers/asyncHandler.js";
-import KeyTokenService from "@/services/keyToken.service.js";
+import { HEADER } from "#/common/constants/header.js";
+import { AuthFailureError, NotFoundError } from "#/core/error.response.js";
+import { asyncHandler } from "#/helpers/asyncHandler.js";
+import KeyTokenService from "#/services/keyToken.service.js";
+import type { TokenPayload } from "#/auth/token.js";
 import { NextFunction, Response, Request } from "express";
 import jwt from "jsonwebtoken";
 import { Types } from "mongoose";
@@ -20,35 +21,8 @@ interface RequestWithKeyStore extends Request {
   userId?: string;
 }
 
-const createTokenPair = (
-  payload: any,
-  publicKey: string,
-  privateKey: string,
-) => {
-  try {
-    const accessToken = jwt.sign(payload, privateKey, {
-      algorithm: "RS256",
-      expiresIn: "2d",
-    });
-
-    const refreshToken = jwt.sign(payload, privateKey, {
-      algorithm: "RS256",
-      expiresIn: "7d",
-    });
-
-    jwt.verify(accessToken, publicKey);
-
-    return {
-      accessToken,
-      refreshToken,
-    };
-  } catch (error) {
-    throw error;
-  }
-};
-
 const authentication = asyncHandler(
-  async (req: RequestWithKeyStore, res: Response, next: NextFunction) => {
+  async (req: RequestWithKeyStore, _res: Response, next: NextFunction) => {
     const userId = req.headers[HEADER.CLIENT_ID]?.toString();
     if (!userId) {
       throw new AuthFailureError("Invalid request: Missing x-client-id header");
@@ -59,27 +33,33 @@ const authentication = asyncHandler(
       throw new NotFoundError("Invalid request: Key store not found");
     }
 
-    const accessToken = req.headers[HEADER.AUTHORIZATION]?.toString();
-    if (!accessToken) {
+    const authorization = req.headers[HEADER.AUTHORIZATION]?.toString();
+    if (!authorization) {
       throw new AuthFailureError("Invalid request: Missing access token");
     }
+    const accessToken = authorization.startsWith("Bearer ")
+      ? authorization.slice(7).trim()
+      : authorization;
 
     try {
-      const decodeUser = jwt.verify(accessToken, keyStore.publicKey);
-      if (userId !== (decodeUser as any).userId) {
+      const decoded = jwt.verify(accessToken, keyStore.publicKey, {
+        algorithms: ["RS256"],
+      }) as TokenPayload;
+      if (userId !== String(decoded.userId)) {
         throw new AuthFailureError("Invalid request: User ID mismatch");
       }
       req.keyStore = keyStore;
       req.userId = userId;
       return next();
     } catch (error) {
+      if (error instanceof AuthFailureError) throw error;
       if (error instanceof Error && error.name === "TokenExpiredError") {
         throw new AuthFailureError("Access token expired");
       }
-      throw error;
+      throw new AuthFailureError("Invalid access token");
     }
   },
 );
 
-export { createTokenPair, authentication };
+export { authentication };
 export type { RequestWithKeyStore };

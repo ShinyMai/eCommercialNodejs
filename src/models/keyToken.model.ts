@@ -13,6 +13,7 @@ const keyTokenSchema = new Schema(
       type: Schema.Types.ObjectId,
       ref: "Shop",
       required: true,
+      unique: true,
     },
     publicKey: {
       type: String,
@@ -25,7 +26,7 @@ const keyTokenSchema = new Schema(
       unique: true,
     },
     refreshTokenUsed: {
-      type: Array,
+      type: [String],
       default: [],
     },
     refreshToken: {

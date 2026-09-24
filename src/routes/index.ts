@@ -1,21 +1,23 @@
 "use strict";
 
 import { Router } from "express";
-import apiKeyRouter from "@/routes/apiKey/index.js";
-import authRouter from "@/routes/auth/index.js";
-import productRouter from "@/routes/product/index.js";
-import { apiKey, checkPermission } from "@/auth/checkAuth.js";
+import apiKeyRouter from "#/routes/apiKey/index.js";
+import authRouter from "#/routes/auth/index.js";
+import productRouter from "#/routes/product/index.js";
+import { apiKey } from "#/auth/checkAuth.js";
+import { SuccessResponse } from "#/core/success.response.js";
 
 const router = Router();
 
-router.use("/v1/api", apiKeyRouter);
+router.get("/health", (_req, res) => {
+  SuccessResponse.ok(res, { message: "Service is healthy", metadata: {} });
+});
 
-//check apiKey
+router.use("/keys", apiKeyRouter);
+
 router.use(apiKey);
-//check permission
-router.use(checkPermission("READ"));
 
-router.use("/v1/api", authRouter);
-router.use("/v1/product", productRouter);
+router.use("/auth", authRouter);
+router.use("/products", productRouter);
 
 export default router;
