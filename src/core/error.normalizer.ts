@@ -4,7 +4,7 @@ import {
   BadRequestError,
   ConflictRequestError,
   ErrorResponse,
-} from "@/core/error.response.js";
+} from "#/core/error.response.js";
 
 interface MongoServerErrorLike extends Error {
   code?: number;
@@ -63,6 +63,14 @@ export const normalizeError = (error: unknown): ErrorResponse | unknown => {
 
   if (isMongooseCastError(error)) {
     return new BadRequestError(`Invalid value for field "${error.path}"`);
+  }
+
+  if (
+    error instanceof SyntaxError &&
+    "status" in error &&
+    (error as SyntaxError & { status?: number }).status === 400
+  ) {
+    return new BadRequestError("Malformed JSON body");
   }
 
   return error; // không nhận diện được -> để nguyên, error handler sẽ coi là lỗi hệ thống

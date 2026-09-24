@@ -1,7 +1,7 @@
 "use strict";
 
-import { reasonPhrases } from "@/common/constants/reasonPhrases.js";
-import { statusCodes } from "@/common/constants/statusCodes.js";
+import { reasonPhrases } from "#/common/constants/reasonPhrases.js";
+import { statusCodes } from "#/common/constants/statusCodes.js";
 
 class ErrorResponse extends Error {
   /**
@@ -19,6 +19,7 @@ class ErrorResponse extends Error {
     options?: { isOperational?: boolean; cause?: unknown },
   ) {
     super(message);
+    this.name = this.constructor.name;
     this.status = status;
     this.isOperational = options?.isOperational ?? true;
     this.cause = options?.cause;

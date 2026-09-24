@@ -1,10 +1,11 @@
 "use strict";
 
-import { findById } from "@/services/apiKey.service.js";
+import { findById } from "#/services/apiKey.service.js";
 import { NextFunction, Request, Response } from "express";
-import { ForbiddenError } from "@/core/error.response.js";
-import log from "@/helpers/logger.js";
-import { HEADER } from "@/common/constants/header.js";
+import { ForbiddenError } from "#/core/error.response.js";
+import log from "#/helpers/logger.js";
+import { HEADER } from "#/common/constants/header.js";
+import config from "#/configs/index.js";
 
 interface RequestWithObjKey extends Request {
   objKey?: {
@@ -14,9 +15,11 @@ interface RequestWithObjKey extends Request {
   };
 }
 
+type ApiPermission = "READ" | "WRITE" | "DELETE";
+
 const apiKey = async (
   req: RequestWithObjKey,
-  res: Response,
+  _res: Response,
   next: NextFunction,
 ) => {
   try {
@@ -38,8 +41,8 @@ const apiKey = async (
   }
 };
 
-const checkPermission = (permissions: string) => {
-  return (req: RequestWithObjKey, res: Response, next: NextFunction) => {
+const checkPermission = (permissions: ApiPermission) => {
+  return (req: RequestWithObjKey, _res: Response, next: NextFunction) => {
     if (!req.objKey?.permissions) {
       return next(new ForbiddenError("Permission denied"));
     }
@@ -56,4 +59,18 @@ const checkPermission = (permissions: string) => {
   };
 };
 
-export { apiKey, checkPermission };
+const protectApiKeyCreation = (
+  req: Request,
+  _res: Response,
+  next: NextFunction,
+) => {
+  const expected = config.auth.apiKeyBootstrapSecret;
+  if (!expected && !config.isProduction) return next();
+
+  if (!expected || req.header(HEADER.BOOTSTRAP_KEY) !== expected) {
+    return next(new ForbiddenError("Invalid bootstrap key"));
+  }
+  return next();
+};
+
+export { apiKey, checkPermission, protectApiKeyCreation };
