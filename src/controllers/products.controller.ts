@@ -18,6 +18,19 @@ class ProductController {
     });
   }
 
+  static async updateProduct(req: RequestWithKeyStore, res: Response) {
+    const productId = String(req.params.id);
+    const shopId = String(req.userId);
+    if (!productId) {
+      throw new BadRequestError("Product ID is required");
+    }
+
+    SuccessResponse.ok(res, {
+      message: "Product updated successfully",
+      metadata: await ProductFactory.updateProduct(productId, shopId, req.body.product_type, req.body),
+    });
+  }
+
   static async setPublication(req: RequestWithKeyStore, res: Response) {
     const productIds = req.body.productIds ?? req.body.product_id;
     if (

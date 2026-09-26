@@ -4,6 +4,7 @@ import { ClothingModel, ElectronicsModel, Product, ProductModel } from "#/models
 import { detailProduct, findProducts, setProductsPublication } from "#/models/repositories/product.repo.js";
 import { BadRequestError, NotFoundError } from "#/core/error.response.js";
 import { Model, Types } from "mongoose";
+import { updateNestedObject } from "#/common/utils/index.js";
 
 type ProductType = Product["product_type"];
 type ProductPayload = Product & { product_shop: Types.ObjectId | string };
@@ -31,6 +32,35 @@ class ProductFactory {
       await attributeModel.deleteOne({ _id: attributes._id }).catch(() => undefined);
       throw error;
     }
+  }
+
+  static async updateProduct(
+    productId: string,
+    shopId: string,
+    productType: ProductType,
+    payload: Partial<ProductPayload>,
+  ) {
+    const attributeModel = ProductFactory.productRegistry.get(productType);
+    if (!attributeModel) {
+      throw new BadRequestError(`Unsupported product type: ${productType}`);
+    }
+
+    const product = await ProductModel.findByIdAndUpdate(
+      { _id: productId, product_shop: shopId },
+      {
+        $set: updateNestedObject(payload),
+      },
+      {
+        new: true,
+        runValidators: true,
+      },
+    ).exec();
+
+    if (!product) {
+      throw new NotFoundError("Product not found");
+    }
+
+    return product;
   }
 
   static async setPublication({
@@ -108,8 +138,8 @@ class ProductFactory {
     });
   }
 
-  static async detailProduct(productId: string) {
-    return await detailProduct(productId);
+  static detailProduct(productId: string) {
+    return detailProduct(productId);
   }
 }
 

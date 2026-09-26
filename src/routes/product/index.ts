@@ -14,6 +14,7 @@ router.get("/:id", checkPermission("READ"), asyncHandler(ProductController.detai
 router.use(authentication);
 router.get("/shop", checkPermission("READ"), asyncHandler(ProductController.listShopProducts));
 router.post("/", checkPermission("WRITE"), asyncHandler(ProductController.createProduct));
+router.patch("/:id", checkPermission("WRITE"), asyncHandler(ProductController.updateProduct));
 router.patch("/publication", checkPermission("WRITE"), asyncHandler(ProductController.setPublication));
 
 export default router;
