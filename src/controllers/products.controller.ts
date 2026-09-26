@@ -62,10 +62,7 @@ class ProductController {
   static async listPublishedProducts(req: Request, res: Response) {
     const { limit, page, skip } = getPagination(req.query);
     const sort = req.query.sort === "oldest" ? "oldest" : "newest";
-    const search =
-      typeof req.query.search === "string"
-        ? req.query.search.trim() || undefined
-        : undefined;
+    const search = typeof req.query.search === "string" ? req.query.search.trim() || undefined : undefined;
 
     SuccessResponse.ok(res, {
       message: "Products retrieved successfully",
@@ -78,6 +75,23 @@ class ProductController {
         }),
         pagination: { page, limit },
       },
+    });
+  }
+
+  static async detailProduct(req: Request, res: Response) {
+    const productId = req.params.id as string;
+    if (!productId) {
+      throw new BadRequestError("Product ID is required");
+    }
+
+    const product = await ProductFactory.detailProduct(productId);
+    if (!product) {
+      throw new BadRequestError("Product not found");
+    }
+
+    SuccessResponse.ok(res, {
+      message: "Product details retrieved successfully",
+      metadata: product,
     });
   }
 }

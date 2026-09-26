@@ -13,17 +13,8 @@ export interface FindProductsParams {
   select?: string[];
 }
 
-const findProducts = ({
-  filter = {},
-  search,
-  limit,
-  skip,
-  sort = "newest",
-  select,
-}: FindProductsParams) => {
-  const query = search
-    ? { ...filter, $text: { $search: search } }
-    : filter;
+const findProducts = ({ filter = {}, search, limit, skip, sort = "newest", select }: FindProductsParams) => {
+  const query = search ? { ...filter, $text: { $search: search } } : filter;
   const sortBy: Record<string, SortOrder | { $meta: "textScore" }> = search
     ? { score: { $meta: "textScore" } }
     : { createdAt: sort === "newest" ? -1 : 1 };
@@ -37,6 +28,14 @@ const findProducts = ({
     .select(select ? getSelectData({ select }) : {})
     .lean()
     .exec();
+};
+
+const detailProduct = async (productId: string) => {
+  if (!Types.ObjectId.isValid(productId)) {
+    throw new Error("Invalid product ID");
+  }
+
+  return await ProductModel.findById(productId).populate("product_shop", "name email -_id").lean().exec();
 };
 
 const setProductsPublication = async ({
@@ -59,4 +58,4 @@ const setProductsPublication = async ({
   return { matchedCount, modifiedCount };
 };
 
-export { findProducts, setProductsPublication };
+export { findProducts, setProductsPublication, detailProduct };

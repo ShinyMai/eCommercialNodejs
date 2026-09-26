@@ -1,8 +1,8 @@
 # eCommercial Node.js API
 
 Backend Express 5 + TypeScript + MongoDB. Cấu hình được đọc tập trung từ
-`src/configs/index.ts`; file `.env` cũ vẫn tương thích với các biến `DEV_*` và
-`PROD_*`.
+`src/configs/index.ts` và dùng chung một bộ biến môi trường cho mọi môi trường
+triển khai.
 
 ## Chạy dự án
 
@@ -60,8 +60,7 @@ Refresh token được rotate và lưu trong cookie `httpOnly`, giới hạn đ�
 
 ## Cấu hình chính
 
-- `MONGODB_URI`: ưu tiên cao nhất; nếu không có sẽ dựng URI từ `DB_*` hoặc biến
-  `DEV_DB_*`/`PROD_DB_*` cũ.
+- `MONGODB_URI`: ưu tiên cao nhất; nếu không có sẽ dựng URI từ các biến `DB_*`.
 - `APP_PORT`, `API_PREFIX`, `JSON_BODY_LIMIT`, `TRUST_PROXY`.
 - `ACCESS_TOKEN_TTL`, `REFRESH_TOKEN_TTL`, `RSA_MODULUS_LENGTH`.
 - `API_KEY_BOOTSTRAP_SECRET`: bắt buộc khi tạo API key ở production.

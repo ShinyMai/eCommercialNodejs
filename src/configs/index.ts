@@ -4,15 +4,8 @@ import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
 
-const rawEnvironment = process.env.NODE_ENV?.toLowerCase() ?? "development";
-const environment =
-  rawEnvironment === "prod"
-    ? "production"
-    : rawEnvironment === "dev"
-      ? "development"
-      : rawEnvironment;
+const environment = process.env.NODE_ENV?.toLowerCase() ?? "development";
 const isProduction = environment === "production";
-const legacyPrefix = isProduction ? "PROD" : "DEV";
 
 const readString = (name: string, fallback: string): string => {
   const value = process.env[name]?.trim();
@@ -40,26 +33,14 @@ const readBoolean = (name: string, fallback: boolean): boolean => {
 };
 
 const apiPrefix = readString("API_PREFIX", "/v1/api").replace(/\/$/, "");
-const dbHost = readString(
-  "DB_HOST",
-  readString(`${legacyPrefix}_DB_HOST`, "localhost"),
-);
-const dbPort = readNumber(
-  "DB_PORT",
-  readNumber(`${legacyPrefix}_DB_PORT`, 27017),
-);
+const dbHost = readString("DB_HOST", "localhost");
+const dbPort = readNumber("DB_PORT", 27017);
 const dbName = readString(
   "DB_NAME",
-  readString(`${legacyPrefix}_DB_NAME`, isProduction ? "shopPROD" : "shopDEV"),
+  isProduction ? "shopPROD" : "shopDEV",
 );
-const dbUser = readString(
-  "DB_USER",
-  readString(`${legacyPrefix}_DB_USER`, "root"),
-);
-const dbPassword = readString(
-  "DB_PASSWORD",
-  readString(`${legacyPrefix}_DB_PASSWORD`, "root123"),
-);
+const dbUser = readString("DB_USER", "root");
+const dbPassword = readString("DB_PASSWORD", "root123");
 const encodedCredentials = `${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword)}`;
 const defaultMongoUri = `mongodb://${encodedCredentials}@${dbHost}:${dbPort}/${dbName}?authSource=admin`;
 
@@ -67,7 +48,7 @@ const config = Object.freeze({
   environment,
   isProduction,
   app: Object.freeze({
-    port: readNumber("APP_PORT", readNumber(`${legacyPrefix}_APP_PORT`, 3000)),
+    port: readNumber("APP_PORT", 3000),
     apiPrefix,
     jsonLimit: readString("JSON_BODY_LIMIT", "1mb"),
     trustProxy: readBoolean("TRUST_PROXY", false),

@@ -1,15 +1,7 @@
 "use strict";
 
-import {
-  ClothingModel,
-  ElectronicsModel,
-  Product,
-  ProductModel,
-} from "#/models/products.model.js";
-import {
-  findProducts,
-  setProductsPublication,
-} from "#/models/repositories/product.repo.js";
+import { ClothingModel, ElectronicsModel, Product, ProductModel } from "#/models/products.model.js";
+import { detailProduct, findProducts, setProductsPublication } from "#/models/repositories/product.repo.js";
 import { BadRequestError, NotFoundError } from "#/core/error.response.js";
 import { Model, Types } from "mongoose";
 
@@ -17,10 +9,7 @@ type ProductType = Product["product_type"];
 type ProductPayload = Product & { product_shop: Types.ObjectId | string };
 
 class ProductFactory {
-  private static readonly productRegistry = new Map<
-    ProductType,
-    Model<unknown>
-  >();
+  private static readonly productRegistry = new Map<ProductType, Model<unknown>>();
 
   static registerProductType(type: ProductType, model: Model<unknown>) {
     ProductFactory.productRegistry.set(type, model);
@@ -39,9 +28,7 @@ class ProductFactory {
         product_attributes: attributes.toObject(),
       });
     } catch (error) {
-      await attributeModel
-        .deleteOne({ _id: attributes._id })
-        .catch(() => undefined);
+      await attributeModel.deleteOne({ _id: attributes._id }).catch(() => undefined);
       throw error;
     }
   }
@@ -88,12 +75,7 @@ class ProductFactory {
     if (!Types.ObjectId.isValid(shopId)) {
       throw new BadRequestError("Invalid shop ID");
     }
-    const statusFilter =
-      status === "all"
-        ? {}
-        : status === "published"
-          ? { isPublished: true }
-          : { isDraft: true };
+    const statusFilter = status === "all" ? {} : status === "published" ? { isPublished: true } : { isDraft: true };
 
     return findProducts({
       filter: {
@@ -122,24 +104,16 @@ class ProductFactory {
       limit,
       skip,
       sort,
-      select: [
-        "product_name",
-        "product_price",
-        "product_thumbnail",
-        "product_slug",
-        "product_shop",
-      ],
+      select: ["product_name", "product_price", "product_thumbnail", "product_slug", "product_shop"],
     });
+  }
+
+  static async detailProduct(productId: string) {
+    return await detailProduct(productId);
   }
 }
 
-ProductFactory.registerProductType(
-  "Clothing",
-  ClothingModel as Model<unknown>,
-);
-ProductFactory.registerProductType(
-  "Electronics",
-  ElectronicsModel as Model<unknown>,
-);
+ProductFactory.registerProductType("Clothing", ClothingModel as Model<unknown>);
+ProductFactory.registerProductType("Electronics", ElectronicsModel as Model<unknown>);
 
 export { ProductFactory };
