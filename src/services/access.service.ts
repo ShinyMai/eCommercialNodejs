@@ -37,7 +37,7 @@ export default class AccessService {
 
     try {
       if (await shopModel.exists({ email })) {
-        throw new BadRequestError("Email is already taken");
+        throw new ConflictRequestError("Email is already taken");
       }
 
       const password = await bcrypt.hash(

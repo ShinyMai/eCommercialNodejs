@@ -1,6 +1,7 @@
 "use strict";
 
 import { getSelectData } from "#/common/utils/index.js";
+import { BadRequestError } from "#/core/error.response.js";
 import { ProductModel } from "#/models/products.model.js";
 import { SortOrder, Types } from "mongoose";
 
@@ -32,7 +33,7 @@ const findProducts = ({ filter = {}, search, limit, skip, sort = "newest", selec
 
 const detailProduct = async (productId: string) => {
   if (!Types.ObjectId.isValid(productId)) {
-    throw new Error("Invalid product ID");
+    throw new BadRequestError("Invalid product ID");
   }
 
   return await ProductModel.findById(productId).populate("product_shop", "name email -_id").lean().exec();

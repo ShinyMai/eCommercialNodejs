@@ -5,13 +5,16 @@ import { SuccessResponse } from "#/core/success.response.js";
 import { Request, Response } from "express";
 import type { RequestWithKeyStore } from "#/auth/authUtils.js";
 import { getPagination } from "#/common/utils/index.js";
-import { BadRequestError } from "#/core/error.response.js";
+import {
+  BadRequestError,
+  NotFoundError,
+} from "#/core/error.response.js";
 
 class ProductController {
   static async createProduct(req: RequestWithKeyStore, res: Response) {
-    SuccessResponse.created(res, {
+    return SuccessResponse.created(res, {
       message: "Product created successfully",
-      metadata: await ProductFactory.createProduct(req.body.product_type, {
+      items: await ProductFactory.createProduct(req.body.product_type, {
         ...req.body,
         product_shop: req.userId,
       }),
@@ -25,9 +28,14 @@ class ProductController {
       throw new BadRequestError("Product ID is required");
     }
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Product updated successfully",
-      metadata: await ProductFactory.updateProduct(productId, shopId, req.body.product_type, req.body),
+      items: await ProductFactory.updateProduct(
+        productId,
+        shopId,
+        req.body.product_type,
+        req.body,
+      ),
     });
   }
 
@@ -41,9 +49,9 @@ class ProductController {
       throw new BadRequestError("productIds and isPublished are required");
     }
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: `Products ${req.body.isPublished ? "published" : "unpublished"} successfully`,
-      metadata: await ProductFactory.setPublication({
+      items: await ProductFactory.setPublication({
         shopId: String(req.userId),
         productIds,
         isPublished: req.body.isPublished,
@@ -58,36 +66,35 @@ class ProductController {
       throw new BadRequestError("status must be draft, published, or all");
     }
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Shop products retrieved successfully",
-      metadata: {
-        items: await ProductFactory.listShopProducts({
-          shopId: String(req.userId),
-          status: status as "draft" | "published" | "all",
-          limit,
-          skip,
-        }),
-        pagination: { page, limit },
-      },
+      items: await ProductFactory.listShopProducts({
+        shopId: String(req.userId),
+        status: status as "draft" | "published" | "all",
+        limit,
+        skip,
+      }),
+      pagination: { page, limit },
     });
   }
 
   static async listPublishedProducts(req: Request, res: Response) {
     const { limit, page, skip } = getPagination(req.query);
     const sort = req.query.sort === "oldest" ? "oldest" : "newest";
-    const search = typeof req.query.search === "string" ? req.query.search.trim() || undefined : undefined;
+    const search =
+      typeof req.query.search === "string"
+        ? req.query.search.trim() || undefined
+        : undefined;
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Products retrieved successfully",
-      metadata: {
-        items: await ProductFactory.listPublishedProducts({
-          search,
-          limit,
-          skip,
-          sort,
-        }),
-        pagination: { page, limit },
-      },
+      items: await ProductFactory.listPublishedProducts({
+        search,
+        limit,
+        skip,
+        sort,
+      }),
+      pagination: { page, limit },
     });
   }
 
@@ -99,12 +106,12 @@ class ProductController {
 
     const product = await ProductFactory.detailProduct(productId);
     if (!product) {
-      throw new BadRequestError("Product not found");
+      throw new NotFoundError("Product not found");
     }
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Product details retrieved successfully",
-      metadata: product,
+      items: product,
     });
   }
 }

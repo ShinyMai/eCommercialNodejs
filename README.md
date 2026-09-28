@@ -58,6 +58,24 @@ Payload của API publication đã gom chung:
 Refresh token được rotate và lưu trong cookie `httpOnly`, giới hạn đúng path
 `/v1/api/auth`. Client cũng có thể gửi token trong body `refreshToken`.
 
+Tất cả API dùng chung một response envelope. Dữ liệu trả về nằm trong
+`metadata.items`; API danh sách có thêm `metadata.pagination`:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Products retrieved successfully",
+  "metadata": {
+    "items": [],
+    "pagination": { "page": 1, "limit": 20 }
+  },
+  "requestId": "request-id",
+  "timestamp": "2026-09-28T00:00:00.000Z"
+}
+```
+
+Khi có lỗi, `metadata.items` là `null` và `statusCode` khớp với HTTP status.
+
 ## Cấu hình chính
 
 - `MONGODB_URI`: ưu tiên cao nhất; nếu không có sẽ dựng URI từ các biến `DB_*`.

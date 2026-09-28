@@ -11,6 +11,10 @@ import { morganStream } from "#/configs/logger.config.js";
 import log from "#/helpers/logger.js";
 import { ErrorResponse, NotFoundError } from "#/core/error.response.js";
 import { normalizeError } from "#/core/error.normalizer.js";
+import {
+  createApiResponse,
+  type ApiErrorResponse,
+} from "#/core/api.response.js";
 import config from "#/configs/index.js";
 
 const app = express();
@@ -41,7 +45,7 @@ app.use(
   (
     error: unknown,
     req: express.Request,
-    res: express.Response,
+    res: express.Response<ApiErrorResponse>,
     _next: express.NextFunction,
   ) => {
     const requestId = (req as RequestWithId).requestId;
@@ -49,7 +53,7 @@ app.use(
     const normalized = normalizeError(error);
 
     const isKnownError = normalized instanceof ErrorResponse;
-    const statusCode = isKnownError ? normalized.status : 500;
+    const statusCode = isKnownError ? normalized.statusCode : 500;
     const isOperational = isKnownError ? normalized.isOperational : false;
 
     if (isOperational) {
@@ -65,13 +69,14 @@ app.use(
       ? (normalized as Error).message
       : "Internal Server Error";
 
-    return res.status(statusCode).json({
-      status: "error",
-      code: statusCode,
-      message: clientMessage,
-      requestId,
-      timestamp: new Date().toISOString(),
-    });
+    return res.status(statusCode).json(
+      createApiResponse({
+        statusCode,
+        message: clientMessage,
+        items: null,
+        requestId,
+      }),
+    );
   },
 );
 

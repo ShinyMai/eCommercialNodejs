@@ -1,7 +1,7 @@
 "use strict";
 
 import { HEADER } from "#/common/constants/header.js";
-import { AuthFailureError, NotFoundError } from "#/core/error.response.js";
+import { AuthFailureError } from "#/core/error.response.js";
 import { asyncHandler } from "#/helpers/asyncHandler.js";
 import KeyTokenService from "#/services/keyToken.service.js";
 import type { TokenPayload } from "#/auth/token.js";
@@ -30,7 +30,7 @@ const authentication = asyncHandler(
 
     const keyStore = await KeyTokenService.findByUserId(userId);
     if (!keyStore) {
-      throw new NotFoundError("Invalid request: Key store not found");
+      throw new AuthFailureError("Invalid request: Key store not found");
     }
 
     const authorization = req.headers[HEADER.AUTHORIZATION]?.toString();

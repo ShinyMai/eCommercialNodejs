@@ -2,7 +2,10 @@
 
 import { findById } from "#/services/apiKey.service.js";
 import { NextFunction, Request, Response } from "express";
-import { ForbiddenError } from "#/core/error.response.js";
+import {
+  AuthFailureError,
+  ForbiddenError,
+} from "#/core/error.response.js";
 import log from "#/helpers/logger.js";
 import { HEADER } from "#/common/constants/header.js";
 import config from "#/configs/index.js";
@@ -25,13 +28,13 @@ const apiKey = async (
   try {
     const key = req.headers[HEADER.API_KEY]?.toString();
     if (!key) {
-      throw new ForbiddenError("Missing x-api-key header");
+      throw new AuthFailureError("Missing x-api-key header");
     }
 
     //check objKey
     const objKey = await findById(key);
     if (!objKey) {
-      throw new ForbiddenError("Invalid API key");
+      throw new AuthFailureError("Invalid API key");
     }
 
     req.objKey = objKey;
@@ -68,7 +71,7 @@ const protectApiKeyCreation = (
   if (!expected && !config.isProduction) return next();
 
   if (!expected || req.header(HEADER.BOOTSTRAP_KEY) !== expected) {
-    return next(new ForbiddenError("Invalid bootstrap key"));
+    return next(new AuthFailureError("Invalid bootstrap key"));
   }
   return next();
 };

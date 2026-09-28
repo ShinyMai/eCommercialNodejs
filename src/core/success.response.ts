@@ -2,51 +2,62 @@
 
 import { reasonPhrases } from "#/common/constants/reasonPhrases.js";
 import { statusCodes } from "#/common/constants/statusCodes.js";
+import {
+  createApiResponse,
+  type ApiResponse,
+  type PaginationMetadata,
+} from "#/core/api.response.js";
 import { getRequestId } from "#/helpers/request.context.js";
 import type { Response } from "express";
 
-interface SuccessPayload {
-  message: string;
+interface SuccessPayload<T> {
+  message?: string;
   statusCode?: number;
-  metadata?: object;
+  items: T;
+  pagination?: PaginationMetadata;
 }
 
 class SuccessResponse {
-  static send(
+  static send<T>(
     res: Response,
-    { message, statusCode = statusCodes.OK, metadata = {} }: SuccessPayload,
-  ) {
-    return res.status(statusCode).json({
-      status: "success",
-      code: statusCode,
+    {
+      message = reasonPhrases.OK,
+      statusCode = statusCodes.OK,
+      items,
+      pagination,
+    }: SuccessPayload<T>,
+  ): Response<ApiResponse<T>> {
+    const response = createApiResponse({
+      statusCode,
       message: message || reasonPhrases.OK,
-      metadata,
+      items,
+      pagination,
       requestId: getRequestId(),
-      timestamp: new Date().toISOString(),
     });
+
+    return res.status(statusCode).json(response) as Response<ApiResponse<T>>;
   }
 
-  static ok(
+  static ok<T>(
     res: Response,
-    { message, metadata }: Omit<SuccessPayload, "statusCode">,
-  ) {
+    payload: Omit<SuccessPayload<T>, "statusCode">,
+  ): Response<ApiResponse<T>> {
     return SuccessResponse.send(res, {
-      message,
-      metadata,
+      ...payload,
       statusCode: statusCodes.OK,
     });
   }
 
-  static created(
+  static created<T>(
     res: Response,
-    { message, metadata }: Omit<SuccessPayload, "statusCode">,
-  ) {
+    payload: Omit<SuccessPayload<T>, "statusCode">,
+  ): Response<ApiResponse<T>> {
     return SuccessResponse.send(res, {
-      message,
-      metadata,
+      ...payload,
       statusCode: statusCodes.CREATED,
     });
   }
 }
 
 export { SuccessResponse };
+export type { SuccessPayload };

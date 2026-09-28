@@ -27,8 +27,9 @@ test("health endpoint returns the common response envelope", async () => {
   const body = await response.json();
 
   assert.equal(response.status, 200);
-  assert.equal(body.status, "success");
+  assert.equal(body.statusCode, 200);
   assert.equal(body.message, "Service is healthy");
+  assert.deepEqual(body.metadata, { items: null });
   assert.equal(body.requestId, response.headers.get("x-request-id"));
 });
 
@@ -36,8 +37,10 @@ test("protected resources reject a missing API key", async () => {
   const response = await fetch(`${baseUrl}/products`);
   const body = await response.json();
 
-  assert.equal(response.status, 403);
+  assert.equal(response.status, 401);
+  assert.equal(body.statusCode, 401);
   assert.equal(body.message, "Missing x-api-key header");
+  assert.deepEqual(body.metadata, { items: null });
 });
 
 test("malformed JSON is normalized to a client error", async () => {
@@ -49,5 +52,17 @@ test("malformed JSON is normalized to a client error", async () => {
   const body = await response.json();
 
   assert.equal(response.status, 400);
+  assert.equal(body.statusCode, 400);
   assert.equal(body.message, "Malformed JSON body");
+  assert.deepEqual(body.metadata, { items: null });
+});
+
+test("unknown protected route returns the common auth error response", async () => {
+  const response = await fetch(`${baseUrl}/health/unknown`);
+  const body = await response.json();
+
+  assert.equal(response.status, 401);
+  assert.equal(body.statusCode, 401);
+  assert.equal(body.message, "Missing x-api-key header");
+  assert.deepEqual(body.metadata, { items: null });
 });

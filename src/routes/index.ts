@@ -10,7 +10,10 @@ import { SuccessResponse } from "#/core/success.response.js";
 const router = Router();
 
 router.get("/health", (_req, res) => {
-  SuccessResponse.ok(res, { message: "Service is healthy", metadata: {} });
+  return SuccessResponse.ok(res, {
+    message: "Service is healthy",
+    items: null,
+  });
 });
 
 router.use("/keys", apiKeyRouter);

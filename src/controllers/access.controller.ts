@@ -26,7 +26,7 @@ const sendAuthenticatedShop = (
     message: created
       ? "Shop created successfully"
       : "Shop logged in successfully",
-    metadata: { shop: result.shop, accessToken: result.accessToken },
+    items: { shop: result.shop, accessToken: result.accessToken },
   };
   return created
     ? SuccessResponse.created(res, payload)
@@ -43,9 +43,9 @@ class AccessController {
       sameSite: "lax",
     });
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Logged out successfully",
-      metadata: {},
+      items: null,
     });
   }
 
@@ -57,9 +57,9 @@ class AccessController {
 
     setRefreshCookie(res, result.refreshToken);
 
-    SuccessResponse.ok(res, {
+    return SuccessResponse.ok(res, {
       message: "Token refreshed successfully",
-      metadata: {
+      items: {
         accessToken: result.accessToken,
       },
     });
@@ -76,9 +76,9 @@ class AccessController {
   }
 
   static async createApiKey(req: Request, res: Response) {
-    SuccessResponse.created(res, {
+    return SuccessResponse.created(res, {
       message: "API key created successfully",
-      metadata: await createApiKey(req.body.permissions),
+      items: await createApiKey(req.body.permissions),
     });
   }
 }

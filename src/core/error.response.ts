@@ -15,12 +15,11 @@ class ErrorResponse extends Error {
 
   constructor(
     message: string,
-    public status: number,
+    public readonly statusCode: number,
     options?: { isOperational?: boolean; cause?: unknown },
   ) {
     super(message);
     this.name = this.constructor.name;
-    this.status = status;
     this.isOperational = options?.isOperational ?? true;
     this.cause = options?.cause;
     Error.captureStackTrace(this, this.constructor);
