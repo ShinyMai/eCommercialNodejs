@@ -27,7 +27,6 @@ const discountSchema = new Schema(
     discount_code: {
       type: String,
       required: true,
-      unique: true,
     },
     discount_start_date: {
       type: Date,
@@ -53,20 +52,29 @@ const discountSchema = new Schema(
     discount_minimum_purchase: {
       type: Number,
       required: true,
-    },
+    }, // Minimum purchase amount required to apply the discount
     discount_shopId: {
       type: Schema.Types.ObjectId,
       ref: "Shop",
       required: true,
     },
-    discount_productId: {
-      type: Schema.Types.ObjectId,
+    discount_productIds: {
+      type: [Schema.Types.ObjectId],
       ref: "Product",
-      required: true,
+      default: [],
     },
     discount_status: {
       type: Boolean,
       default: true,
+    },
+    discount_applies_to: {
+      type: String,
+      enum: ["all", "specific_products"],
+      required: true,
+    },
+    is_deleted: {
+      type: Boolean,
+      default: false,
     },
   },
   {
@@ -75,7 +83,7 @@ const discountSchema = new Schema(
   },
 );
 
-discountSchema.index({ discount_productId: 1, inven_shopId: 1 }, { unique: true });
+discountSchema.index({ discount_code: 1, discount_shopId: 1 }, { unique: true });
 
 export type Discount = InferSchemaType<typeof discountSchema>;
-export default mongoose.model(DOCUMENT_NAME, discountSchema);
+export const DiscountModel = mongoose.model(DOCUMENT_NAME, discountSchema);

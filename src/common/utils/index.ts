@@ -1,4 +1,6 @@
-"use strict";
+import { BadRequestError } from "#/core/error.response.js";
+import { Types } from "mongoose";
+("use strict");
 
 const getInfoData = <T extends object, K extends keyof T>({
   field,
@@ -41,17 +43,31 @@ const getPagination = (
 const updateNestedObject = (obj: Record<string, unknown>): Record<string, unknown> => {
   const result: Record<string, unknown> = {};
   Object.keys(obj).forEach((key) => {
-    if (typeof obj[key] === "object" && obj[key] !== null && !Array.isArray(obj[key])) {
+    const value = obj[key];
+    const prototype = typeof value === "object" && value !== null
+      ? Object.getPrototypeOf(value)
+      : undefined;
+    const isPlainObject = prototype === Object.prototype || prototype === null;
+
+    if (isPlainObject) {
       const nestedObject = updateNestedObject(obj[key] as Record<string, unknown>);
       Object.keys(nestedObject).forEach((nestedKey) => {
         result[`${key}.${nestedKey}`] = nestedObject[nestedKey];
       });
     } else {
-      result[key] = obj[key];
+      result[key] = value;
     }
   });
 
   return result;
 };
 
-export { getInfoData, getPagination, getSelectData, updateNestedObject };
+const validateObjectId = (id: string, fieldName: string) => {
+  if (!Types.ObjectId.isValid(id)) {
+    throw new BadRequestError(`Invalid ${fieldName}: ${id}`);
+  }
+
+  return new Types.ObjectId(id);
+};
+
+export { getInfoData, getPagination, getSelectData, updateNestedObject, validateObjectId };

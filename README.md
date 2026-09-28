@@ -38,6 +38,12 @@ Prefix mặc định: `/v1/api` (có thể đổi bằng `API_PREFIX`).
 | GET | `/products/shop?status=draft&page=1&limit=20` | `READ` + access token | Sản phẩm của shop; status là `draft`, `published`, hoặc `all` |
 | POST | `/products` | `WRITE` + access token | Tạo sản phẩm |
 | PATCH | `/products/publication` | `WRITE` + access token | Publish/unpublish nhiều sản phẩm |
+| GET | `/discounts?shopId=&productId=&page=1&limit=20` | `READ` | Danh sách mã giảm giá |
+| POST | `/discounts/:id/calculate` | `READ` | Tính số tiền giảm cho giỏ hàng |
+| POST | `/discounts` | `WRITE` + access token | Tạo mã giảm giá của shop |
+| PATCH | `/discounts/:id` | `WRITE` + access token | Cập nhật mã giảm giá của shop |
+| PATCH | `/discounts/:id/cancel` | `WRITE` + access token | Hủy mã giảm giá của shop |
+| DELETE | `/discounts/:id` | `DELETE` + access token | Xóa mềm mã giảm giá của shop |
 
 Các API có access token nhận hai header:
 
@@ -52,6 +58,18 @@ Payload của API publication đã gom chung:
 {
   "productIds": ["<product id>"],
   "isPublished": true
+}
+```
+
+Payload tính tiền giảm giá:
+
+```json
+{
+  "shopId": "<shop id>",
+  "userId": "<user id>",
+  "products": [
+    { "productId": "<product id>", "quantity": 2 }
+  ]
 }
 ```
 
