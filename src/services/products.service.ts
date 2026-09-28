@@ -5,6 +5,7 @@ import { detailProduct, findProducts, setProductsPublication } from "#/models/re
 import { BadRequestError, NotFoundError } from "#/core/error.response.js";
 import { Model, Types } from "mongoose";
 import { updateNestedObject } from "#/common/utils/index.js";
+import { insertInventory } from "#/models/repositories/inventory.repo.js";
 
 type ProductType = Product["product_type"];
 type ProductPayload = Product & { product_shop: Types.ObjectId | string };
@@ -24,10 +25,21 @@ class ProductFactory {
 
     const attributes = await attributeModel.create(payload.product_attributes);
     try {
-      return await ProductModel.create({
+      const newProduct = await ProductModel.create({
         ...payload,
         product_attributes: attributes.toObject(),
       });
+
+      if (newProduct) {
+        await insertInventory({
+          inven_productId: newProduct._id,
+          inven_location: "default",
+          inven_stock: payload.product_quantity ?? 0,
+          inven_shopId: payload.product_shop,
+        });
+      }
+
+      return newProduct;
     } catch (error) {
       await attributeModel.deleteOne({ _id: attributes._id }).catch(() => undefined);
       throw error;

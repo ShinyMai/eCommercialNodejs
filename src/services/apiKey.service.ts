@@ -17,13 +17,9 @@ const createApiKey = async (permissions: string[]) => {
   if (
     !Array.isArray(permissions) ||
     permissions.length === 0 ||
-    permissions.some(
-      (permission) => !ALLOWED_PERMISSIONS.includes(permission as ApiPermission),
-    )
+    permissions.some((permission) => !ALLOWED_PERMISSIONS.includes(permission as ApiPermission))
   ) {
-    throw new BadRequestError(
-      `permissions must contain: ${ALLOWED_PERMISSIONS.join(", ")}`,
-    );
+    throw new BadRequestError(`permissions must contain: ${ALLOWED_PERMISSIONS.join(", ")}`);
   }
 
   const newApiKey = new apiKeyModel({
@@ -31,7 +27,6 @@ const createApiKey = async (permissions: string[]) => {
     permissions: [...new Set(permissions)],
   });
   await newApiKey.save();
-  log.info("API key created", { permissions });
   return newApiKey;
 };
 

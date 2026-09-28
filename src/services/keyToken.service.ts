@@ -14,12 +14,7 @@ interface CreateKeyTokenPayload {
 }
 
 export default class KeyTokenService {
-  static createKeyToken = ({
-    user,
-    publicKey,
-    privateKey,
-    refreshToken,
-  }: CreateKeyTokenPayload) =>
+  static createKeyToken = ({ user, publicKey, privateKey, refreshToken }: CreateKeyTokenPayload) =>
     keyTokenModel.findOneAndUpdate(
       { user: user.id },
       { publicKey, privateKey, refreshTokenUsed: [], refreshToken },
@@ -31,14 +26,10 @@ export default class KeyTokenService {
       throw new AuthFailureError("Invalid request: Missing refresh token");
     }
 
-    const usedTokenOwner = await keyTokenModel
-      .findOne({ refreshTokenUsed: refreshToken })
-      .lean();
+    const usedTokenOwner = await keyTokenModel.findOne({ refreshTokenUsed: refreshToken }).lean();
     if (usedTokenOwner) {
       await keyTokenModel.deleteOne({ _id: usedTokenOwner._id });
-      throw new AuthFailureError(
-        "Invalid request: Refresh token has already been used",
-      );
+      throw new AuthFailureError("Invalid request: Refresh token has already been used");
     }
 
     const keyStore = await keyTokenModel.findOne({ refreshToken }).lean();
@@ -59,11 +50,7 @@ export default class KeyTokenService {
       throw new AuthFailureError("Invalid request: User ID mismatch");
     }
 
-    const newToken = createTokenPair(
-      { userId: keyStore.user },
-      keyStore.publicKey,
-      keyStore.privateKey,
-    );
+    const newToken = createTokenPair({ userId: keyStore.user }, keyStore.publicKey, keyStore.privateKey);
     const rotated = await keyTokenModel.findOneAndUpdate(
       { _id: keyStore._id, refreshToken },
       {
@@ -83,6 +70,5 @@ export default class KeyTokenService {
     return keyTokenModel.findOne({ user: new Types.ObjectId(userId) }).lean();
   };
 
-  static removeKeyById = (id: Types.ObjectId | string) =>
-    keyTokenModel.deleteOne({ _id: id });
+  static removeKeyById = (id: Types.ObjectId | string) => keyTokenModel.deleteOne({ _id: id });
 }
