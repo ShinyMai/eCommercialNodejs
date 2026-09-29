@@ -5,6 +5,7 @@ import { AuthFailureError } from "#/core/error.response.js";
 import { SuccessResponse } from "#/core/success.response.js";
 import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";
 import AuthService from "#/services/auth.service.js";
+import type { CredentialsInput, SignUpInput } from "#/auth/validation.js";
 import type { Request, Response } from "express";
 
 const setRefreshCookie = (res: Response, refreshToken: string) => {
@@ -49,9 +50,9 @@ class AuthController {
     return SuccessResponse.ok(res, { message: "Logged out successfully", items: null });
   }
 
-  static async refresh(req: Request, res: Response) {
+  static async refresh(req: Request<object, object, { refreshToken?: string }>, res: Response) {
     const bodyToken = req.body && typeof req.body === "object"
-      ? (req.body as Record<string, unknown>).refreshToken
+      ? req.body.refreshToken
       : undefined;
     const refreshToken = req.cookies?.[config.auth.refreshCookieName] ?? bodyToken;
 
@@ -74,15 +75,21 @@ class AuthController {
     });
   }
 
-  static async signupBuyer(req: Request, res: Response) {
-    return sendAuthenticatedAccount(res, await AuthService.signup(req.body, "buyer"), true);
+  static async signupBuyer(req: Request<object, object, SignUpInput>, res: Response) {
+    return sendAuthenticatedAccount(res, await AuthService.signupBuyer(req.body), true);
   }
 
-  static async signupSeller(req: Request, res: Response) {
-    return sendAuthenticatedAccount(res, await AuthService.signup(req.body, "seller"), true);
+  static async registerSeller(req: Request<object, object, SignUpInput>, res: Response) {
+    const result = await AuthService.registerSeller(req.body);
+    res.setHeader("Cache-Control", "no-store");
+    res.setHeader("Pragma", "no-cache");
+    return SuccessResponse.created(res, {
+      message: "Seller registration submitted and is pending admin approval",
+      items: result,
+    });
   }
 
-  static async login(req: Request, res: Response) {
+  static async login(req: Request<object, object, CredentialsInput>, res: Response) {
     return sendAuthenticatedAccount(res, await AuthService.login(req.body));
   }
 }

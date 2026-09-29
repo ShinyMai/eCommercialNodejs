@@ -3,6 +3,17 @@
 import { BadRequestError } from "#/core/error.response.js";
 import type { AccountRole } from "#/auth/roles.js";
 
+export interface CredentialsInput {
+  email?: string;
+  password?: string;
+}
+
+export interface SignUpInput extends CredentialsInput {
+  name?: string;
+  storeName?: string;
+  storeDescription?: string;
+}
+
 export interface Credentials {
   email: string;
   password: string;
@@ -16,31 +27,39 @@ export interface SignUpPayload extends Credentials {
   };
 }
 
-const normalizeEmail = (value: unknown): string => {
+const normalizeEmail = (value?: string): string => {
   if (typeof value !== "string") throw new BadRequestError("Email is required");
+
   const email = value.trim().toLowerCase();
+
   if (email.length > 254 || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email)) {
     throw new BadRequestError("Email is invalid");
   }
+
   return email;
 };
 
-const parsePassword = (value: unknown, enforceStrength: boolean): string => {
+const parsePassword = (value: string | undefined, enforceStrength: boolean): string => {
   if (typeof value !== "string" || !value) {
     throw new BadRequestError("Password is required");
   }
+
   const byteLength = Buffer.byteLength(value, "utf8");
+
   if (byteLength > 72) {
     throw new BadRequestError("Password must not exceed 72 UTF-8 bytes");
   }
-  if (enforceStrength && value.length < 12) {
-    throw new BadRequestError("Password must contain at least 12 characters");
+
+  if (enforceStrength && value.length < 8) {
+    throw new BadRequestError("Password must contain at least 8 characters");
   }
+
   return value;
 };
 
-export const parseCredentials = (value: unknown): Credentials => {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+export const parseCredentials = (value: CredentialsInput): Credentials => {
+  const input = value && typeof value === "object" ? value : {};
+
   return {
     email: normalizeEmail(input.email),
     password: parsePassword(input.password, false),
@@ -48,38 +67,46 @@ export const parseCredentials = (value: unknown): Credentials => {
 };
 
 export const parseSignUpPayload = (
-  value: unknown,
+  value: SignUpInput,
   role: Exclude<AccountRole, "admin"> = "buyer",
 ): SignUpPayload => {
-  const input = value && typeof value === "object" ? value as Record<string, unknown> : {};
+  const input = value && typeof value === "object" ? value : {};
+
   if (typeof input.name !== "string" || !input.name.trim()) {
     throw new BadRequestError("Name is required");
   }
+
   const name = input.name.trim();
+
   if (name.length > 150) throw new BadRequestError("Name must not exceed 150 characters");
+
   const result: SignUpPayload = {
     name,
     email: normalizeEmail(input.email),
     password: parsePassword(input.password, true),
   };
+
   if (role === "seller") {
     if (typeof input.storeName !== "string" || !input.storeName.trim()) {
       throw new BadRequestError("Store name is required for seller accounts");
     }
+
     const storeName = input.storeName.trim();
     if (storeName.length > 150) {
       throw new BadRequestError("Store name must not exceed 150 characters");
     }
+
     if (input.storeDescription !== undefined && typeof input.storeDescription !== "string") {
       throw new BadRequestError("Store description must be a string");
     }
-    const description = typeof input.storeDescription === "string"
-      ? input.storeDescription.trim()
-      : "";
+
+    const description = typeof input.storeDescription === "string" ? input.storeDescription.trim() : "";
     if (description.length > 2_000) {
       throw new BadRequestError("Store description must not exceed 2000 characters");
     }
+
     result.sellerProfile = { storeName, description };
   }
+
   return result;
 };

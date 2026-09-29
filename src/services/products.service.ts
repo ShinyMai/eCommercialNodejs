@@ -13,20 +13,50 @@ import {
 } from "#/models/repositories/inventory.repo.js";
 import { Types } from "mongoose";
 import slugify from "slugify";
+import type { RuntimeRecord } from "#/types/value.types.js";
 
 type ProductType = "Clothing" | "Electronics";
-type UnknownRecord = Record<string, unknown>;
+
+export interface ProductAttributesInput {
+  brand?: string;
+  size?: string;
+  material?: string;
+  manufacturer?: string;
+  model?: string;
+  color?: string;
+}
+
+export interface CreateProductInput {
+  product_name: string;
+  product_thumbnail: string;
+  product_description?: string;
+  product_price: number;
+  product_quantity: number;
+  product_type: ProductType;
+  product_attributes: ProductAttributesInput;
+  product_variations?: RuntimeRecord[];
+}
+
+export interface SetPublicationInput {
+  productIds?: string[];
+  product_id?: string[];
+  isPublished: boolean;
+}
+
+type ProductUpdate = Partial<Omit<CreateProductInput, "product_type">> & {
+  product_slug?: string;
+};
 
 const PRODUCT_TYPES: readonly ProductType[] = ["Clothing", "Electronics"];
 
-const asRecord = (value: unknown, field: string): UnknownRecord => {
+const asRecord = <T extends object>(value: T, field: string): T => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BadRequestError(`${field} must be an object`);
   }
-  return value as UnknownRecord;
+  return value;
 };
 
-const requiredString = (value: unknown, field: string, maxLength = 500): string => {
+const requiredString = (value: string | undefined, field: string, maxLength = 500): string => {
   if (typeof value !== "string" || !value.trim()) {
     throw new BadRequestError(`${field} is required`);
   }
@@ -37,14 +67,14 @@ const requiredString = (value: unknown, field: string, maxLength = 500): string 
   return result;
 };
 
-const nonNegativeNumber = (value: unknown, field: string): number => {
+const nonNegativeNumber = (value: number | undefined, field: string): number => {
   if (typeof value !== "number" || !Number.isFinite(value) || value < 0) {
     throw new BadRequestError(`${field} must be a non-negative number`);
   }
   return value;
 };
 
-const nonNegativeInteger = (value: unknown, field: string): number => {
+const nonNegativeInteger = (value: number | undefined, field: string): number => {
   const result = nonNegativeNumber(value, field);
   if (!Number.isInteger(result)) {
     throw new BadRequestError(`${field} must be an integer`);
@@ -52,14 +82,17 @@ const nonNegativeInteger = (value: unknown, field: string): number => {
   return result;
 };
 
-const parseProductType = (value: unknown): ProductType => {
+const parseProductType = (value: ProductType | undefined): ProductType => {
   if (!PRODUCT_TYPES.includes(value as ProductType)) {
     throw new BadRequestError(`product_type must be one of: ${PRODUCT_TYPES.join(", ")}`);
   }
   return value as ProductType;
 };
 
-const parseAttributes = (value: unknown, productType: ProductType): UnknownRecord => {
+const parseAttributes = (
+  value: ProductAttributesInput,
+  productType: ProductType,
+): Record<string, string> => {
   const attributes = asRecord(value, "product_attributes");
   const fields = productType === "Clothing"
     ? ["brand", "size", "material"] as const
@@ -69,7 +102,7 @@ const parseAttributes = (value: unknown, productType: ProductType): UnknownRecor
   );
 };
 
-const parseCreateInput = (value: unknown) => {
+const parseCreateInput = (value: CreateProductInput) => {
   const input = asRecord(value, "product");
   const productType = parseProductType(input.product_type);
   return {
@@ -87,15 +120,15 @@ const parseCreateInput = (value: unknown) => {
 };
 
 const parseUpdateInput = (
-  value: unknown,
+  value: Partial<CreateProductInput>,
   existingType: ProductType,
-): UnknownRecord => {
+): ProductUpdate => {
   const input = asRecord(value, "product");
   if (input.product_type !== undefined && parseProductType(input.product_type) !== existingType) {
     throw new BadRequestError("product_type cannot be changed");
   }
 
-  const update: UnknownRecord = {};
+  const update: ProductUpdate = {};
   if (input.product_name !== undefined) {
     update.product_name = requiredString(input.product_name, "product_name", 200);
     update.product_slug = slugify(update.product_name as string, { lower: true });
@@ -129,7 +162,7 @@ const parseUpdateInput = (
 };
 
 class ProductService {
-  static async createProduct(input: unknown, sellerId: string) {
+  static async createProduct(input: CreateProductInput, sellerId: string) {
     if (!Types.ObjectId.isValid(sellerId)) throw new BadRequestError("Invalid seller ID");
     const payload = parseCreateInput(input);
     const newProduct = await ProductModel.create({ ...payload, product_seller: sellerId });
@@ -148,7 +181,7 @@ class ProductService {
     }
   }
 
-  static async updateProduct(productId: string, sellerId: string, input: unknown) {
+  static async updateProduct(productId: string, sellerId: string, input: Partial<CreateProductInput>) {
     if (!Types.ObjectId.isValid(productId) || !Types.ObjectId.isValid(sellerId)) {
       throw new BadRequestError("Invalid seller or product ID");
     }

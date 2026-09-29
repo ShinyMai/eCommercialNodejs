@@ -3,7 +3,11 @@
 import { getPagination } from "#/common/utils/index.js";
 import { SuccessResponse } from "#/core/success.response.js";
 import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";
-import AccountsService from "#/services/accounts.service.js";
+import AccountsService, {
+  type UpdateProfileInput,
+  type UpdateRoleInput,
+  type UpdateStatusInput,
+} from "#/services/accounts.service.js";
 import type { Response } from "express";
 
 class AccountsController {
@@ -14,7 +18,7 @@ class AccountsController {
     });
   }
 
-  static async updateMyProfile(req: AuthenticatedRequest, res: Response) {
+  static async updateMyProfile(req: AuthenticatedRequest<UpdateProfileInput>, res: Response) {
     return SuccessResponse.ok(res, {
       message: "Profile updated successfully",
       items: await AccountsService.updateOwnProfile(
@@ -40,7 +44,7 @@ class AccountsController {
     });
   }
 
-  static async updateRole(req: AuthenticatedRequest, res: Response) {
+  static async updateRole(req: AuthenticatedRequest<UpdateRoleInput>, res: Response) {
     return SuccessResponse.ok(res, {
       message: "Account role updated successfully",
       items: await AccountsService.updateRole(
@@ -52,7 +56,7 @@ class AccountsController {
     });
   }
 
-  static async updateStatus(req: AuthenticatedRequest, res: Response) {
+  static async updateStatus(req: AuthenticatedRequest<UpdateStatusInput>, res: Response) {
     return SuccessResponse.ok(res, {
       message: "Account status updated successfully",
       items: await AccountsService.updateStatus(
@@ -60,6 +64,13 @@ class AccountsController {
         String(req.params.id),
         req.body?.status,
       ),
+    });
+  }
+
+  static async approveSeller(req: AuthenticatedRequest, res: Response) {
+    return SuccessResponse.ok(res, {
+      message: "Seller registration approved successfully",
+      items: await AccountsService.approveSeller(String(req.params.id)),
     });
   }
 }

@@ -78,7 +78,7 @@ test("seller inherits buyer capabilities and admin inherits all capabilities", (
   assert.equal(hasMinimumRole("admin", "admin"), true);
 });
 
-test("seller signup requires a store profile", () => {
+test("seller registration requires a store profile", () => {
   assert.throws(
     () => parseSignUpPayload({
       name: "Seller",
@@ -100,6 +100,10 @@ test("account credentials and user profile data use separate schemas", () => {
   assert.ok(AccountModel.schema.path("email"));
   assert.ok(AccountModel.schema.path("password"));
   assert.ok(AccountModel.schema.path("role"));
+  assert.deepEqual(
+    AccountModel.schema.path("status").options.enum,
+    ["pending", "active", "inactive"],
+  );
   assert.equal(AccountModel.schema.path("name"), undefined);
   assert.equal(AccountModel.schema.path("sellerProfile"), undefined);
 

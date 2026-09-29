@@ -1,11 +1,12 @@
 import { BadRequestError } from "#/core/error.response.js";
 import { Types } from "mongoose";
+import type { RuntimeValue } from "#/types/value.types.js";
 ("use strict");
 
 const getSelectData = ({ select = [] }: { select?: string[] }) => Object.fromEntries(select.map((field) => [field, 1]));
 
 const getPagination = (
-  query: Record<string, unknown>,
+  query: Record<string, RuntimeValue>,
   defaults: { limit?: number; page?: number; maxLimit?: number } = {},
 ) => {
   const maxLimit = defaults.maxLimit ?? 100;

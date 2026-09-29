@@ -5,10 +5,11 @@ import {
   ConflictRequestError,
   ErrorResponse,
 } from "#/core/error.response.js";
+import type { RuntimeRecord, RuntimeValue } from "#/types/value.types.js";
 
 interface MongoServerErrorLike extends Error {
   code?: number;
-  keyValue?: Record<string, unknown>;
+  keyValue?: RuntimeRecord;
 }
 
 interface MongooseValidationErrorLike extends Error {
@@ -19,22 +20,22 @@ interface MongooseValidationErrorLike extends Error {
 interface MongooseCastErrorLike extends Error {
   name: "CastError";
   path: string;
-  value: unknown;
+  value: RuntimeValue;
 }
 
 const isMongoDuplicateKeyError = (
-  error: unknown,
+  error: RuntimeValue,
 ): error is MongoServerErrorLike =>
   error instanceof Error &&
   error.name === "MongoServerError" &&
   (error as MongoServerErrorLike).code === 11000;
 
 const isMongooseValidationError = (
-  error: unknown,
+  error: RuntimeValue,
 ): error is MongooseValidationErrorLike =>
   error instanceof Error && error.name === "ValidationError";
 
-const isMongooseCastError = (error: unknown): error is MongooseCastErrorLike =>
+const isMongooseCastError = (error: RuntimeValue): error is MongooseCastErrorLike =>
   error instanceof Error && error.name === "CastError";
 
 /**
@@ -46,7 +47,7 @@ const isMongooseCastError = (error: unknown): error is MongooseCastErrorLike =>
  * Bất kỳ lỗi nào không khớp pattern nào ở dưới vẫn giữ nguyên là lỗi hệ thống (an toàn,
  * tránh việc lỡ tay "hạ cấp" một bug thật thành lỗi operational rồi bỏ qua không điều tra).
  */
-export const normalizeError = (error: unknown): ErrorResponse | unknown => {
+export const normalizeError = (error: RuntimeValue): ErrorResponse | RuntimeValue => {
   if (error instanceof ErrorResponse) {
     return error; // đã được phân loại chủ động từ trước -> giữ nguyên
   }

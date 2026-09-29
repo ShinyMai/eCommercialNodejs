@@ -1,5 +1,6 @@
 @baseUrl = http://localhost:3052/v1/api
 @accessToken = replace-with-access-token
+@sellerAccountId = replace-with-pending-seller-account-id
 
 ### Health
 GET {{baseUrl}}/health
@@ -14,8 +15,8 @@ Content-Type: application/json
   "password": "correct-horse-battery-staple"
 }
 
-### Sign up as seller
-POST {{baseUrl}}/auth/signup/seller
+### Register as seller (pending admin approval; does not return tokens)
+POST {{baseUrl}}/auth/register/seller
 Content-Type: application/json
 
 {
@@ -34,6 +35,10 @@ Content-Type: application/json
   "email": "buyer@example.com",
   "password": "correct-horse-battery-staple"
 }
+
+### Approve a pending seller (admin access token required)
+PATCH {{baseUrl}}/accounts/{{sellerAccountId}}/approve-seller
+Authorization: Bearer {{accessToken}}
 
 ### Refresh token (uses the httpOnly cookie returned by login/signup)
 POST {{baseUrl}}/auth/refresh-token

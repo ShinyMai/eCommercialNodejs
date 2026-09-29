@@ -1,5 +1,7 @@
 "use strict";
 
+import type { RuntimeValue } from "#/types/value.types.js";
+
 export const ACCOUNT_ROLES = ["buyer", "seller", "admin"] as const;
 export type AccountRole = (typeof ACCOUNT_ROLES)[number];
 
@@ -14,5 +16,5 @@ export const hasMinimumRole = (
   requiredRole: AccountRole,
 ): boolean => ROLE_LEVEL[actualRole] >= ROLE_LEVEL[requiredRole];
 
-export const isAccountRole = (value: unknown): value is AccountRole =>
+export const isAccountRole = (value: RuntimeValue): value is AccountRole =>
   ACCOUNT_ROLES.includes(value as AccountRole);

@@ -7,8 +7,14 @@ import { asyncHandler } from "#/helpers/asyncHandler.js";
 import AuthSessionService from "#/services/authSession.service.js";
 import { findActiveAccountById } from "#/models/repositories/account.repo.js";
 import type { NextFunction, Request, Response } from "express";
+import type { ParamsDictionary } from "express-serve-static-core";
+import type { ParsedQs } from "qs";
+import type { RuntimeRecord } from "#/types/value.types.js";
 
-export interface AuthenticatedRequest extends Request {
+export interface AuthenticatedRequest<
+  TBody = RuntimeRecord,
+  TQuery extends ParsedQs = ParsedQs,
+> extends Request<ParamsDictionary, object, TBody, TQuery> {
   auth: {
     accountId: string;
     sessionId: string;

@@ -23,7 +23,7 @@ const refreshLimiter = createRateLimiter({
 });
 
 router.post("/signup", signupLimiter, asyncHandler(AuthController.signupBuyer));
-router.post("/signup/seller", signupLimiter, asyncHandler(AuthController.signupSeller));
+router.post("/register/seller", signupLimiter, asyncHandler(AuthController.registerSeller));
 router.post("/login", loginLimiter, asyncHandler(AuthController.login));
 router.post(
   "/refresh-token",

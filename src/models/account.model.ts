@@ -2,6 +2,13 @@
 
 import { ACCOUNT_ROLES } from "#/auth/roles.js";
 import mongoose, { InferSchemaType, Schema } from "mongoose";
+import type { RuntimeValue } from "#/types/value.types.js";
+
+export const ACCOUNT_STATUSES = ["pending", "active", "inactive"] as const;
+export type AccountStatus = (typeof ACCOUNT_STATUSES)[number];
+
+export const isAccountStatus = (value: RuntimeValue): value is AccountStatus =>
+  ACCOUNT_STATUSES.includes(value as AccountStatus);
 
 const accountSchema = new Schema(
   {
@@ -22,7 +29,7 @@ const accountSchema = new Schema(
     },
     status: {
       type: String,
-      enum: ["active", "inactive"],
+      enum: ACCOUNT_STATUSES,
       default: "active",
       index: true,
     },

@@ -4,7 +4,7 @@ import { createRefreshToken, hashToken } from "#/auth/token.js";
 import config from "#/configs/index.js";
 import { AuthFailureError } from "#/core/error.response.js";
 import { AuthSessionModel } from "#/models/authSession.model.js";
-import { Types } from "mongoose";
+import { Types, type UpdateResult } from "mongoose";
 
 const activeSessionFilter = (now: Date) => ({
   revokedAt: null,
@@ -107,7 +107,7 @@ export default class AuthSessionService {
     }).lean();
   }
 
-  static revokeById(sessionId: string): Promise<unknown> {
+  static revokeById(sessionId: string): Promise<UpdateResult | null> {
     if (!Types.ObjectId.isValid(sessionId)) return Promise.resolve(null);
     return AuthSessionModel.updateOne(
       { _id: new Types.ObjectId(sessionId), revokedAt: null },

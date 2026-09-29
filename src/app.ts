@@ -16,6 +16,7 @@ import {
   type ApiErrorResponse,
 } from "#/core/api.response.js";
 import config from "#/configs/index.js";
+import type { RuntimeValue } from "#/types/value.types.js";
 
 const app = express();
 
@@ -42,7 +43,7 @@ app.use(
 
 app.use(
   (
-    error: unknown,
+    error: RuntimeValue,
     req: express.Request,
     res: express.Response<ApiErrorResponse>,
     _next: express.NextFunction,

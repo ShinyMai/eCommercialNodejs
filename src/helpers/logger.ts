@@ -2,8 +2,12 @@
 
 import logger from "#/configs/logger.config.js";
 import { getRequestId } from "#/helpers/request.context.js";
+import type { RuntimeValue } from "#/types/value.types.js";
 
-type LogMeta = Record<string, unknown>;
+type LogMeta = Record<string, RuntimeValue>;
+
+export const toError = <T>(error: T): Error =>
+  error instanceof Error ? error : new Error(String(error));
 
 const withRequestId = (meta: LogMeta = {}) => {
   const requestId = getRequestId();
@@ -26,8 +30,8 @@ const log = {
    * - error: error gốc (giữ nguyên stack trace thật, không bị "nuốt")
    * - meta: dữ liệu liên quan (KHÔNG log password, token, secret...)
    */
-  error: (context: string, error: unknown, meta?: LogMeta) => {
-    const err = error instanceof Error ? error : new Error(String(error));
+  error: <T>(context: string, error: T, meta?: LogMeta) => {
+    const err = toError(error);
     logger.error(`[${context}] ${err.message}`, {
       ...withRequestId(meta),
       stack: err.stack,

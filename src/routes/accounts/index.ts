@@ -17,6 +17,11 @@ router.patch(
 );
 router.get("/", requireMinimumRole("admin"), asyncHandler(AccountsController.list));
 router.patch("/:id/role", requireMinimumRole("admin"), asyncHandler(AccountsController.updateRole));
+router.patch(
+  "/:id/approve-seller",
+  requireMinimumRole("admin"),
+  asyncHandler(AccountsController.approveSeller),
+);
 router.patch("/:id/status", requireMinimumRole("admin"), asyncHandler(AccountsController.updateStatus));
 
 export default router;

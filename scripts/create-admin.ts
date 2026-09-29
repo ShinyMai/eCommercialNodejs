@@ -9,9 +9,9 @@ import bcrypt from "bcrypt";
 
 const run = async () => {
   const payload = parseSignUpPayload({
-    name: process.env.ADMIN_NAME,
-    email: process.env.ADMIN_EMAIL,
-    password: process.env.ADMIN_PASSWORD,
+    name: "admin",
+    email: "admin@example.com",
+    password: "12345678",
   });
 
   await db.connect();

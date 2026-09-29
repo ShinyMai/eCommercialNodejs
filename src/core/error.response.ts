@@ -11,12 +11,12 @@ class ErrorResponse extends Error {
    *                          Phải log đầy đủ stack trace ở mức "error" để điều tra,
    */
   public isOperational: boolean;
-  public cause?: unknown;
+  public cause?: Error;
 
   constructor(
     message: string,
     public readonly statusCode: number,
-    options?: { isOperational?: boolean; cause?: unknown },
+    options?: { isOperational?: boolean; cause?: Error },
   ) {
     super(message);
     this.name = this.constructor.name;
@@ -84,7 +84,7 @@ class InternalServerError extends ErrorResponse {
   constructor(
     message: string = reasonPhrases.INTERNAL_SERVER_ERROR,
     statusCode: number = statusCodes.INTERNAL_SERVER_ERROR,
-    cause?: unknown,
+    cause?: Error,
   ) {
     // 500 mặc định coi là lỗi hệ thống (isOperational: false)
     super(message, statusCode, { isOperational: false, cause });

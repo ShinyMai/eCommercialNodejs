@@ -5,11 +5,13 @@ import { DiscountModel } from "#/models/discount.model.js";
 import { BadRequestError, ConflictRequestError, NotFoundError } from "#/core/error.response.js";
 import { validateObjectId } from "#/common/utils/index.js";
 import { ProductModel } from "#/models/products.model.js";
+import type { Discount } from "#/models/discount.model.js";
+import type { QueryFilter } from "mongoose";
 
 type DiscountType = "percentage" | "fixed_amount";
 type DiscountAppliesTo = "all" | "specific_products";
 
-interface DiscountInput {
+export interface DiscountInput {
   discount_name: string;
   discount_description: string;
   discount_type: DiscountType;
@@ -21,6 +23,16 @@ interface DiscountInput {
   discount_minimum_purchase: number;
   discount_applies_to: DiscountAppliesTo;
   discount_productIds: string[];
+}
+
+export interface DiscountCartItemInput {
+  productId: string;
+  quantity: number;
+}
+
+export interface CalculateDiscountInput {
+  products: DiscountCartItemInput[];
+  sellerId: string;
 }
 
 const DISCOUNT_FIELDS: readonly (keyof DiscountInput)[] = [
@@ -37,14 +49,17 @@ const DISCOUNT_FIELDS: readonly (keyof DiscountInput)[] = [
   "discount_productIds",
 ];
 
-const parseDiscountInput = (value: unknown, partial: boolean): Partial<DiscountInput> => {
+const parseDiscountInput = (
+  value: DiscountInput | Partial<DiscountInput>,
+  partial: boolean,
+): Partial<DiscountInput> => {
   if (!value || typeof value !== "object" || Array.isArray(value)) {
     throw new BadRequestError("Discount payload must be an object");
   }
-  const source = value as Record<string, unknown>;
-  const result: Record<string, unknown> = {};
+  const source = value;
+  const result: Partial<DiscountInput> = {};
   for (const field of DISCOUNT_FIELDS) {
-    if (source[field] !== undefined) result[field] = source[field];
+    if (source[field] !== undefined) Object.assign(result, { [field]: source[field] });
   }
 
   if (!partial) {
@@ -94,7 +109,7 @@ const parseDiscountInput = (value: unknown, partial: boolean): Partial<DiscountI
     result.discount_productIds = [...new Set(result.discount_productIds as string[])];
     (result.discount_productIds as string[]).forEach((id) => validateObjectId(id, "discount_productIds"));
   }
-  return result as Partial<DiscountInput>;
+  return result;
 };
 
 const assertProductsBelongToSeller = async (
@@ -112,7 +127,7 @@ const assertProductsBelongToSeller = async (
 };
 
 class DiscountService {
-  static async createDiscountCode(input: unknown, sellerIdInput: string) {
+  static async createDiscountCode(input: DiscountInput, sellerIdInput: string) {
     const discount = parseDiscountInput(input, false) as DiscountInput;
     const now = new Date();
     const startDate = new Date(discount.discount_start_date);
@@ -157,7 +172,11 @@ class DiscountService {
     });
   }
 
-  static async updateDiscountCode(discountId: string, input: unknown, sellerIdInput: string) {
+  static async updateDiscountCode(
+    discountId: string,
+    input: Partial<DiscountInput>,
+    sellerIdInput: string,
+  ) {
     const discount = parseDiscountInput(input, true);
     const now = new Date();
     const discountObjectId = validateObjectId(discountId, "discountId");
@@ -214,7 +233,7 @@ class DiscountService {
     }
     await assertProductsBelongToSeller(sellerId, effectiveProductIds);
 
-    const updateData: Record<string, unknown> = { ...discount };
+    const updateData: Partial<DiscountInput> = { ...discount };
     if (discount.discount_start_date) {
       updateData.discount_start_date = startDate;
     }
@@ -250,7 +269,7 @@ class DiscountService {
     page: number;
   }) {
     const now = new Date();
-    const filter: Record<string, unknown> = {
+    const filter: QueryFilter<Discount> = {
       is_deleted: false,
       discount_status: true,
       discount_start_date: { $lte: now },
@@ -271,10 +290,7 @@ class DiscountService {
 
   static async getDiscountAmount(
     discountId: string,
-    products: {
-      productId: string;
-      quantity: number;
-    }[],
+    products: DiscountCartItemInput[],
     sellerId: string,
     buyerAccountId: string,
   ) {

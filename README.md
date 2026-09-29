@@ -65,7 +65,7 @@ Prefix mặc định: `/v1/api` (có thể đổi bằng `API_PREFIX`).
 | --- | --- | --- | --- |
 | GET | `/health` | Công khai | Health check |
 | POST | `/auth/signup` | Công khai | Đăng ký buyer |
-| POST | `/auth/signup/seller` | Công khai | Đăng ký seller kèm thông tin cửa hàng |
+| POST | `/auth/register/seller` | Công khai | Gửi đăng ký seller; account ở trạng thái `pending`, không cấp token |
 | POST | `/auth/login` | Công khai | Đăng nhập |
 | POST | `/auth/refresh-token` | Refresh token | Rotate refresh token và phát hiện replay |
 | POST | `/auth/logout` | Buyer+ | Đăng xuất |
@@ -73,6 +73,7 @@ Prefix mặc định: `/v1/api` (có thể đổi bằng `API_PREFIX`).
 | PATCH | `/accounts/me/profile` | Buyer+ | Cập nhật user profile; seller có thể cập nhật seller profile |
 | GET | `/accounts?role=&status=&page=&limit=` | Admin | Danh sách account |
 | PATCH | `/accounts/:id/role` | Admin | Thay đổi role |
+| PATCH | `/accounts/:id/approve-seller` | Admin | Duyệt đăng ký seller đang chờ |
 | PATCH | `/accounts/:id/status` | Admin | Khóa/mở account |
 | GET | `/products?search=&page=1&limit=20&sort=newest` | Công khai | Danh sách/search sản phẩm published |
 | GET | `/products/seller?status=draft&page=1&limit=20` | Seller+ | Sản phẩm của seller; status là `draft`, `published`, hoặc `all` |
@@ -106,7 +107,9 @@ chiếu profile ID. Mỗi account có đúng một role:
 Role được đọc lại từ `accounts` trên mỗi request authenticated, không lấy từ
 input của client hoặc tin vào role cũ trong JWT. Public signup không thể tạo
 admin. Profile của seller có thêm object `sellerProfile` chứa `storeName` và
-`description`.
+`description`. Seller đăng ký qua `/auth/register/seller`; account mới có trạng
+thái `pending`, không nhận access/refresh token và không thể đăng nhập cho đến
+khi admin duyệt qua `/accounts/:id/approve-seller`.
 
 Các API có access token chỉ nhận header:
 

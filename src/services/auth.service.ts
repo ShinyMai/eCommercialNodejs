@@ -1,6 +1,11 @@
 "use strict";
 
-import { parseCredentials, parseSignUpPayload } from "#/auth/validation.js";
+import {
+  parseCredentials,
+  parseSignUpPayload,
+  type CredentialsInput,
+  type SignUpInput,
+} from "#/auth/validation.js";
 import type { AccountRole } from "#/auth/roles.js";
 import { createAccessToken } from "#/auth/token.js";
 import config from "#/configs/index.js";
@@ -11,8 +16,8 @@ import {
   ForbiddenError,
   InternalServerError,
 } from "#/core/error.response.js";
-import log from "#/helpers/logger.js";
-import { AccountModel } from "#/models/account.model.js";
+import log, { toError } from "#/helpers/logger.js";
+import { AccountModel, type AccountStatus } from "#/models/account.model.js";
 import { AuthSessionModel } from "#/models/authSession.model.js";
 import { UserProfileModel } from "#/models/userProfile.model.js";
 import AuthSessionService from "#/services/authSession.service.js";
@@ -21,14 +26,15 @@ import {
   findByEmailForAuthentication,
 } from "#/models/repositories/account.repo.js";
 import bcrypt from "bcrypt";
+import { Types } from "mongoose";
+import type { RuntimeRecord, RuntimeValue } from "#/types/value.types.js";
 
-type PublicSignUpRole = Exclude<AccountRole, "admin">;
 const FALLBACK_PASSWORD_HASH =
   "$2b$10$92IXUNpkjO0rOQ5byMi.Ye4oKoEa3Ro9llC/.og/at2uheWG/igi.";
 
-const presentProfile = (value: unknown) => {
+const presentProfile = (value: RuntimeValue) => {
   if (!value || typeof value !== "object" || Array.isArray(value)) return null;
-  const profile = value as Record<string, unknown>;
+  const profile = value as RuntimeRecord;
   return {
     _id: profile._id,
     name: profile.name,
@@ -39,12 +45,12 @@ const presentProfile = (value: unknown) => {
 };
 
 const presentAccount = (account: {
-  _id: unknown;
+  _id: Types.ObjectId;
   email: string;
   role: AccountRole;
-  status: "active" | "inactive";
+  status: AccountStatus;
   verified: boolean;
-  profile?: unknown;
+  profile?: RuntimeValue;
 }) => ({
   _id: account._id,
   email: account.email,
@@ -55,7 +61,30 @@ const presentAccount = (account: {
 });
 
 export default class AuthService {
-  static signup = async (input: unknown, role: PublicSignUpRole) => {
+  static signupBuyer = async (input: SignUpInput) => {
+    const account = await AuthService.createAccount(input, "buyer", "active");
+
+    try {
+      const session = await AuthService.createSession(String(account._id));
+      return { account, ...session };
+    } catch (error) {
+      await AuthService.rollback(String(account._id));
+      if (error instanceof ErrorResponse) throw error;
+      log.error("AuthService.signupBuyer", error, { email: account.email });
+      throw new InternalServerError("Unable to create account", undefined, toError(error));
+    }
+  };
+
+  static registerSeller = async (input: SignUpInput) => {
+    const account = await AuthService.createAccount(input, "seller", "pending");
+    return { account };
+  };
+
+  private static createAccount = async (
+    input: SignUpInput,
+    role: Exclude<AccountRole, "admin">,
+    status: AccountStatus,
+  ) => {
     const payload = parseSignUpPayload(input, role);
     let createdAccountId: string | undefined;
 
@@ -69,7 +98,7 @@ export default class AuthService {
         email: payload.email,
         password,
         role,
-        status: "active",
+        status,
       });
       createdAccountId = account._id.toString();
       const profile = await UserProfileModel.create({
@@ -77,15 +106,10 @@ export default class AuthService {
         name: payload.name,
         sellerProfile: payload.sellerProfile,
       });
-      const session = await AuthService.createSession(createdAccountId);
-
-      return {
-        account: presentAccount({
-          ...account.toObject(),
-          profile: profile.toObject(),
-        }),
-        ...session,
-      };
+      return presentAccount({
+        ...account.toObject(),
+        profile: profile.toObject(),
+      });
     } catch (error) {
       if (createdAccountId) await AuthService.rollback(createdAccountId);
       if (error instanceof ErrorResponse) throw error;
@@ -96,16 +120,19 @@ export default class AuthService {
       ) {
         throw new ConflictRequestError("Email is already taken");
       }
-      log.error("AuthService.signup", error, { email: payload.email, role });
-      throw new InternalServerError("Unable to create account", undefined, error);
+      log.error("AuthService.createAccount", error, { email: payload.email, role, status });
+      throw new InternalServerError("Unable to create account", undefined, toError(error));
     }
   };
 
-  static login = async (input: unknown) => {
+  static login = async (input: CredentialsInput) => {
     const { email, password } = parseCredentials(input);
     const account = await findByEmailForAuthentication(email);
     const matches = await bcrypt.compare(password, account?.password ?? FALLBACK_PASSWORD_HASH);
     if (!account || !matches) throw new AuthFailureError("Invalid email or password");
+    if (account.status === "pending") {
+      throw new ForbiddenError("Seller registration is pending admin approval");
+    }
     if (account.status !== "active") throw new ForbiddenError("Account is inactive");
 
     const session = await AuthService.createSession(account._id.toString());

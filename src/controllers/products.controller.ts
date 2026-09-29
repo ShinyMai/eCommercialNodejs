@@ -1,6 +1,10 @@
 "use strict";
 
-import { ProductService } from "#/services/products.service.js";
+import {
+  ProductService,
+  type CreateProductInput,
+  type SetPublicationInput,
+} from "#/services/products.service.js";
 import { SuccessResponse } from "#/core/success.response.js";
 import { Request, Response } from "express";
 import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";
@@ -11,14 +15,14 @@ import {
 } from "#/core/error.response.js";
 
 class ProductController {
-  static async createProduct(req: AuthenticatedRequest, res: Response) {
+  static async createProduct(req: AuthenticatedRequest<CreateProductInput>, res: Response) {
     return SuccessResponse.created(res, {
       message: "Product created successfully",
       items: await ProductService.createProduct(req.body, req.auth.accountId),
     });
   }
 
-  static async updateProduct(req: AuthenticatedRequest, res: Response) {
+  static async updateProduct(req: AuthenticatedRequest<Partial<CreateProductInput>>, res: Response) {
     const productId = String(req.params.id);
     const sellerId = req.auth.accountId;
     if (!productId) {
@@ -35,7 +39,7 @@ class ProductController {
     });
   }
 
-  static async setPublication(req: AuthenticatedRequest, res: Response) {
+  static async setPublication(req: AuthenticatedRequest<SetPublicationInput>, res: Response) {
     const productIds = req.body.productIds ?? req.body.product_id;
     if (
       !Array.isArray(productIds) ||

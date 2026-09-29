@@ -57,6 +57,22 @@ test("malformed JSON is normalized to a client error", async () => {
   assert.deepEqual(body.metadata, { items: null });
 });
 
+test("seller registration uses the dedicated endpoint and validates store details", async () => {
+  const response = await fetch(`${baseUrl}/auth/register/seller`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({
+      name: "Pending Seller",
+      email: "pending-seller@example.com",
+      password: "correct horse battery staple",
+    }),
+  });
+  const body = await response.json();
+
+  assert.equal(response.status, 400);
+  assert.equal(body.message, "Store name is required for seller accounts");
+});
+
 test("unknown route returns the common not-found response", async () => {
   const response = await fetch(`${baseUrl}/health/unknown`);
   const body = await response.json();

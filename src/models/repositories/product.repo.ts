@@ -2,11 +2,11 @@
 
 import { getSelectData } from "#/common/utils/index.js";
 import { BadRequestError } from "#/core/error.response.js";
-import { ProductModel } from "#/models/products.model.js";
-import { SortOrder, Types } from "mongoose";
+import { ProductModel, type Product } from "#/models/products.model.js";
+import { type QueryFilter, SortOrder, Types } from "mongoose";
 
 export interface FindProductsParams {
-  filter?: Record<string, unknown>;
+  filter?: QueryFilter<Product>;
   search?: string;
   limit: number;
   skip: number;

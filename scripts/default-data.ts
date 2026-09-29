@@ -9,6 +9,7 @@ import { ProductModel } from "#/models/products.model.js";
 import { UserProfileModel } from "#/models/userProfile.model.js";
 import bcrypt from "bcrypt";
 import mongoose, { Types } from "mongoose";
+import type { RuntimeValue } from "#/types/value.types.js";
 
 const DAY_MS = 24 * 60 * 60 * 1_000;
 export const DEFAULT_TEST_PASSWORD = "ChangeMe123!";
@@ -403,7 +404,7 @@ export const seedDefaultData = async () => {
 
   const upsert = (
     collectionName: string,
-    fixtures: ReadonlyArray<Record<string, unknown> & { _id: Types.ObjectId }>,
+    fixtures: ReadonlyArray<Record<string, RuntimeValue> & { _id: Types.ObjectId }>,
   ) =>
     database.collection(collectionName).bulkWrite(
       fixtures.map(({ _id, ...fields }) => ({
