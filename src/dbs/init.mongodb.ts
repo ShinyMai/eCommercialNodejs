@@ -10,12 +10,13 @@ const connect = (): Promise<void> => {
   if (mongoose.connection.readyState === 1) return Promise.resolve();
   if (connectionPromise) return connectionPromise;
 
+  mongoose.set("strictQuery", true);
   mongoose.set("debug", config.db.debug ? { color: true } : false);
   connectionPromise = mongoose
     .connect(config.db.uri)
     .then(() => {
       log.info(`DB connected [${config.environment}]`, {
-        db: config.db.name,
+        db: mongoose.connection.name,
       });
     })
     .catch((error) => {

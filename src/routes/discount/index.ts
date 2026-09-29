@@ -1,8 +1,8 @@
 "use strict";
 
 import { Router } from "express";
-import { authentication } from "#/auth/authUtils.js";
-import { checkPermission } from "#/auth/checkAuth.js";
+import { authentication } from "#/middlewares/authentication.middleware.js";
+import { requireMinimumRole } from "#/middlewares/authorization.middleware.js";
 import DiscountController from "#/controllers/discount.controller.js";
 import { asyncHandler } from "#/helpers/asyncHandler.js";
 
@@ -10,36 +10,36 @@ const router = Router();
 
 router.get(
   "/",
-  checkPermission("READ"),
   asyncHandler(DiscountController.getListDiscountCode),
 );
 router.post(
   "/:id/calculate",
-  checkPermission("READ"),
+  authentication,
+  requireMinimumRole("buyer"),
   asyncHandler(DiscountController.getDiscountAmount),
 );
 router.post(
   "/",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(DiscountController.createDiscountCode),
 );
 router.patch(
   "/:id/cancel",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(DiscountController.cancelDiscountCode),
 );
 router.patch(
   "/:id",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(DiscountController.updateDiscountCode),
 );
 router.delete(
   "/:id",
   authentication,
-  checkPermission("DELETE"),
+  requireMinimumRole("seller"),
   asyncHandler(DiscountController.deleteDiscountCode),
 );
 

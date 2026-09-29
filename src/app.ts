@@ -29,14 +29,13 @@ app.use(
 app.use(helmet());
 app.use(compression());
 app.use(express.json({ limit: config.app.jsonLimit }));
-app.use(express.urlencoded({ extended: true }));
 app.use(cookieParser());
 
 app.use(config.app.apiPrefix, router);
 
 //handling errors
 app.use(
-  (req: express.Request, res: express.Response, next: express.NextFunction) => {
+  (req: express.Request, _res: express.Response, next: express.NextFunction) => {
     next(new NotFoundError(`Route ${req.method} ${req.originalUrl} not found`));
   },
 );

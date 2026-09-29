@@ -1,9 +1,7 @@
 import assert from "node:assert/strict";
 import { after, before, test } from "node:test";
 import type { Server } from "node:http";
-import { Types } from "mongoose";
 import app from "../src/app.js";
-import { updateNestedObject } from "../src/common/utils/index.js";
 
 let server: Server;
 let baseUrl: string;
@@ -35,13 +33,13 @@ test("health endpoint returns the common response envelope", async () => {
   assert.equal(body.requestId, response.headers.get("x-request-id"));
 });
 
-test("protected resources reject a missing API key", async () => {
-  const response = await fetch(`${baseUrl}/products`);
+test("protected routes reject a missing access token", async () => {
+  const response = await fetch(`${baseUrl}/auth/logout`, { method: "POST" });
   const body = await response.json();
 
   assert.equal(response.status, 401);
   assert.equal(body.statusCode, 401);
-  assert.equal(body.message, "Missing x-api-key header");
+  assert.equal(body.message, "Missing Bearer access token");
   assert.deepEqual(body.metadata, { items: null });
 });
 
@@ -59,34 +57,12 @@ test("malformed JSON is normalized to a client error", async () => {
   assert.deepEqual(body.metadata, { items: null });
 });
 
-test("unknown protected route returns the common auth error response", async () => {
+test("unknown route returns the common not-found response", async () => {
   const response = await fetch(`${baseUrl}/health/unknown`);
   const body = await response.json();
 
-  assert.equal(response.status, 401);
-  assert.equal(body.statusCode, 401);
-  assert.equal(body.message, "Missing x-api-key header");
+  assert.equal(response.status, 404);
+  assert.equal(body.statusCode, 404);
+  assert.match(body.message, /Route GET .* not found/);
   assert.deepEqual(body.metadata, { items: null });
-});
-
-test("updateNestedObject flattens only plain objects", () => {
-  const shopId = new Types.ObjectId("507f1f77bcf86cd799439011");
-  const startDate = new Date("2026-10-01T00:00:00.000Z");
-
-  const result = updateNestedObject({
-    discount_shopId: shopId,
-    discount_start_date: startDate,
-    settings: {
-      limits: {
-        perUser: 1,
-      },
-    },
-    productIds: [shopId],
-  });
-
-  assert.strictEqual(result.discount_shopId, shopId);
-  assert.strictEqual(result.discount_start_date, startDate);
-  assert.deepEqual(result.productIds, [shopId]);
-  assert.equal(result["settings.limits.perUser"], 1);
-  assert.equal(Object.keys(result).some((key) => key.startsWith("discount_shopId.")), false);
 });

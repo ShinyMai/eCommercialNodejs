@@ -10,10 +10,13 @@ const discountSchema = new Schema(
     discount_name: {
       type: String,
       required: true,
+      trim: true,
+      maxLength: 200,
     },
     discount_description: {
       type: String,
       required: true,
+      trim: true,
     },
     discount_type: {
       type: String,
@@ -23,10 +26,13 @@ const discountSchema = new Schema(
     discount_value: {
       type: Number,
       required: true,
+      min: 0,
     },
     discount_code: {
       type: String,
       required: true,
+      trim: true,
+      uppercase: true,
     },
     discount_start_date: {
       type: Date,
@@ -39,23 +45,26 @@ const discountSchema = new Schema(
     discount_max_uses: {
       type: Number,
       required: true,
+      min: 1,
     },
     discount_used_count: {
       type: Number,
       default: 0,
+      min: 0,
     },
-    discount_used_by: {
+    discount_used_by_accounts: {
       type: [Schema.Types.ObjectId],
-      ref: "User",
+      ref: "Account",
       default: [],
     },
     discount_minimum_purchase: {
       type: Number,
       required: true,
+      min: 0,
     }, // Minimum purchase amount required to apply the discount
-    discount_shopId: {
+    discount_sellerId: {
       type: Schema.Types.ObjectId,
-      ref: "Shop",
+      ref: "Account",
       required: true,
     },
     discount_productIds: {
@@ -83,7 +92,7 @@ const discountSchema = new Schema(
   },
 );
 
-discountSchema.index({ discount_code: 1, discount_shopId: 1 }, { unique: true });
+discountSchema.index({ discount_code: 1, discount_sellerId: 1 }, { unique: true });
 
 export type Discount = InferSchemaType<typeof discountSchema>;
 export const DiscountModel = mongoose.model(DOCUMENT_NAME, discountSchema);

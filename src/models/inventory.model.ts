@@ -22,9 +22,9 @@ const inventorySchema = new Schema(
       required: true,
       min: [0, "Inventory stock cannot be negative"],
     },
-    inven_shopId: {
+    inven_sellerId: {
       type: Schema.Types.ObjectId,
-      ref: "Shop",
+      ref: "Account",
       required: true,
     },
     inven_reservations: {
@@ -38,7 +38,7 @@ const inventorySchema = new Schema(
   },
 );
 
-inventorySchema.index({ inven_productId: 1, inven_shopId: 1 }, { unique: true });
+inventorySchema.index({ inven_productId: 1, inven_sellerId: 1 }, { unique: true });
 
 export type Inventory = InferSchemaType<typeof inventorySchema>;
 export default mongoose.model(DOCUMENT_NAME, inventorySchema);

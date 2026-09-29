@@ -3,35 +3,35 @@
 import { Router } from "express";
 import { asyncHandler } from "#/helpers/asyncHandler.js";
 import ProductController from "#/controllers/products.controller.js";
-import { authentication } from "#/auth/authUtils.js";
-import { checkPermission } from "#/auth/checkAuth.js";
+import { authentication } from "#/middlewares/authentication.middleware.js";
+import { requireMinimumRole } from "#/middlewares/authorization.middleware.js";
 
 const router = Router();
 
-router.get("/", checkPermission("READ"), asyncHandler(ProductController.listPublishedProducts));
+router.get("/", asyncHandler(ProductController.listPublishedProducts));
 router.get(
-  "/shop",
+  "/seller",
   authentication,
-  checkPermission("READ"),
-  asyncHandler(ProductController.listShopProducts),
+  requireMinimumRole("seller"),
+  asyncHandler(ProductController.listSellerProducts),
 );
-router.get("/:id", checkPermission("READ"), asyncHandler(ProductController.detailProduct));
+router.get("/:id", asyncHandler(ProductController.detailProduct));
 router.post(
   "/",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(ProductController.createProduct),
 );
 router.patch(
   "/publication",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(ProductController.setPublication),
 );
 router.patch(
   "/:id",
   authentication,
-  checkPermission("WRITE"),
+  requireMinimumRole("seller"),
   asyncHandler(ProductController.updateProduct),
 );
 

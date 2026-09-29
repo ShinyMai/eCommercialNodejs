@@ -1,9 +1,9 @@
 "use strict";
 
-import { ProductFactory } from "#/services/products.service.js";
+import { ProductService } from "#/services/products.service.js";
 import { SuccessResponse } from "#/core/success.response.js";
 import { Request, Response } from "express";
-import type { RequestWithKeyStore } from "#/auth/authUtils.js";
+import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";
 import { getPagination } from "#/common/utils/index.js";
 import {
   BadRequestError,
@@ -11,35 +11,31 @@ import {
 } from "#/core/error.response.js";
 
 class ProductController {
-  static async createProduct(req: RequestWithKeyStore, res: Response) {
+  static async createProduct(req: AuthenticatedRequest, res: Response) {
     return SuccessResponse.created(res, {
       message: "Product created successfully",
-      items: await ProductFactory.createProduct(req.body.product_type, {
-        ...req.body,
-        product_shop: req.userId,
-      }),
+      items: await ProductService.createProduct(req.body, req.auth.accountId),
     });
   }
 
-  static async updateProduct(req: RequestWithKeyStore, res: Response) {
+  static async updateProduct(req: AuthenticatedRequest, res: Response) {
     const productId = String(req.params.id);
-    const shopId = String(req.userId);
+    const sellerId = req.auth.accountId;
     if (!productId) {
       throw new BadRequestError("Product ID is required");
     }
 
     return SuccessResponse.ok(res, {
       message: "Product updated successfully",
-      items: await ProductFactory.updateProduct(
+      items: await ProductService.updateProduct(
         productId,
-        shopId,
-        req.body.product_type,
+        sellerId,
         req.body,
       ),
     });
   }
 
-  static async setPublication(req: RequestWithKeyStore, res: Response) {
+  static async setPublication(req: AuthenticatedRequest, res: Response) {
     const productIds = req.body.productIds ?? req.body.product_id;
     if (
       !Array.isArray(productIds) ||
@@ -51,15 +47,15 @@ class ProductController {
 
     return SuccessResponse.ok(res, {
       message: `Products ${req.body.isPublished ? "published" : "unpublished"} successfully`,
-      items: await ProductFactory.setPublication({
-        shopId: String(req.userId),
+      items: await ProductService.setPublication({
+        sellerId: req.auth.accountId,
         productIds,
         isPublished: req.body.isPublished,
       }),
     });
   }
 
-  static async listShopProducts(req: RequestWithKeyStore, res: Response) {
+  static async listSellerProducts(req: AuthenticatedRequest, res: Response) {
     const { limit, page, skip } = getPagination(req.query);
     const status = String(req.query.status ?? "all");
     if (!["draft", "published", "all"].includes(status)) {
@@ -67,9 +63,9 @@ class ProductController {
     }
 
     return SuccessResponse.ok(res, {
-      message: "Shop products retrieved successfully",
-      items: await ProductFactory.listShopProducts({
-        shopId: String(req.userId),
+      message: "Seller products retrieved successfully",
+      items: await ProductService.listSellerProducts({
+        sellerId: req.auth.accountId,
         status: status as "draft" | "published" | "all",
         limit,
         skip,
@@ -88,7 +84,7 @@ class ProductController {
 
     return SuccessResponse.ok(res, {
       message: "Products retrieved successfully",
-      items: await ProductFactory.listPublishedProducts({
+      items: await ProductService.listPublishedProducts({
         search,
         limit,
         skip,
@@ -104,7 +100,7 @@ class ProductController {
       throw new BadRequestError("Product ID is required");
     }
 
-    const product = await ProductFactory.detailProduct(productId);
+    const product = await ProductService.detailProduct(productId);
     if (!product) {
       throw new NotFoundError("Product not found");
     }

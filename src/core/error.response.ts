@@ -62,6 +62,15 @@ class ForbiddenError extends ErrorResponse {
   }
 }
 
+class TooManyRequestsError extends ErrorResponse {
+  constructor(
+    message: string = reasonPhrases.TOO_MANY_REQUESTS,
+    statusCode: number = statusCodes.TOO_MANY_REQUESTS,
+  ) {
+    super(message, statusCode);
+  }
+}
+
 class NotFoundError extends ErrorResponse {
   constructor(
     message: string = reasonPhrases.NOT_FOUND,
@@ -90,4 +99,5 @@ export {
   NotFoundError,
   InternalServerError,
   AuthFailureError,
+  TooManyRequestsError,
 };

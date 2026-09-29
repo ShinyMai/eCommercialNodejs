@@ -11,9 +11,11 @@
   "scripts": {
     "dev": "node --conditions=development --import tsx --watch server.ts",
     "build": "tsc",
-    "seed:discounts": "node --conditions=development --import tsx scripts/seed-discounts.ts",
+    "create:admin": "node --conditions=development --import tsx scripts/create-admin.ts",
+    "db:seed": "node --conditions=development --import tsx scripts/seed-default.ts",
+    "db:reset": "node --conditions=development --import tsx scripts/reset-database.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --conditions=development --import tsx --test tests/app.test.ts",
+    "test": "node --conditions=development --import tsx --test tests/app.test.ts tests/auth.test.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "start": "node dist/server.js"
   },

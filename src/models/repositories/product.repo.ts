@@ -22,7 +22,11 @@ const findProducts = ({ filter = {}, search, limit, skip, sort = "newest", selec
   const projection = search ? { score: { $meta: "textScore" } } : undefined;
 
   return ProductModel.find(query, projection)
-    .populate("product_shop", "name email -_id")
+    .populate({
+      path: "product_seller",
+      select: "role",
+      populate: { path: "profile", select: "name sellerProfile.storeName" },
+    })
     .sort(sortBy)
     .skip(skip)
     .limit(limit)
@@ -36,21 +40,28 @@ const detailProduct = async (productId: string) => {
     throw new BadRequestError("Invalid product ID");
   }
 
-  return await ProductModel.findById(productId).populate("product_shop", "name email -_id").lean().exec();
+  return ProductModel.findOne({ _id: productId, isPublished: true })
+    .populate({
+      path: "product_seller",
+      select: "role",
+      populate: { path: "profile", select: "name sellerProfile.storeName" },
+    })
+    .lean()
+    .exec();
 };
 
 const setProductsPublication = async ({
   productIds,
-  shopId,
+  sellerId,
   isPublished,
 }: {
   productIds: string[];
-  shopId: string;
+  sellerId: string;
   isPublished: boolean;
 }) => {
   const { matchedCount, modifiedCount } = await ProductModel.updateMany(
     {
-      product_shop: new Types.ObjectId(shopId),
+      product_seller: new Types.ObjectId(sellerId),
       _id: { $in: productIds.map((id) => new Types.ObjectId(id)) },
     },
     { $set: { isDraft: !isPublished, isPublished } },

@@ -22,7 +22,7 @@ const log = {
 
   /**
    * Log lỗi kèm đầy đủ ngữ cảnh để dễ truy vết:
-   * - context: nơi xảy ra lỗi, ví dụ "AccessService.signup"
+   * - context: nơi xảy ra lỗi, ví dụ "AuthService.signup"
    * - error: error gốc (giữ nguyên stack trace thật, không bị "nuốt")
    * - meta: dữ liệu liên quan (KHÔNG log password, token, secret...)
    */
