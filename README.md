@@ -79,6 +79,11 @@ Prefix mặc định: `/v1/api` (có thể đổi bằng `API_PREFIX`).
 | GET | `/products/seller?status=draft&page=1&limit=20` | Seller+ | Sản phẩm của seller; status là `draft`, `published`, hoặc `all` |
 | POST | `/products` | Seller+ | Tạo sản phẩm |
 | PATCH | `/products/publication` | Seller+ | Publish/unpublish nhiều sản phẩm |
+| GET | `/cart` | Buyer+ | Lấy giỏ hàng của account hiện tại |
+| POST | `/cart/items` | Buyer+ | Thêm sản phẩm vào giỏ hàng |
+| PATCH | `/cart/items/:productId` | Buyer+ | Cập nhật số lượng sản phẩm |
+| DELETE | `/cart/items/:productId` | Buyer+ | Xóa sản phẩm khỏi giỏ hàng |
+| DELETE | `/cart` | Buyer+ | Xóa toàn bộ sản phẩm trong giỏ hàng |
 | GET | `/discounts?sellerId=&productId=&page=1&limit=20` | Công khai | Danh sách mã giảm giá |
 | POST | `/discounts/:id/calculate` | Buyer+ | Tính số tiền giảm cho giỏ hàng |
 | POST | `/discounts` | Seller+ | Tạo mã giảm giá |

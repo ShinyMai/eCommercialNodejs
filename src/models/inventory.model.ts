@@ -41,4 +41,5 @@ const inventorySchema = new Schema(
 inventorySchema.index({ inven_productId: 1, inven_sellerId: 1 }, { unique: true });
 
 export type Inventory = InferSchemaType<typeof inventorySchema>;
-export default mongoose.model(DOCUMENT_NAME, inventorySchema);
+export const InventoryModel = mongoose.model(DOCUMENT_NAME, inventorySchema);
+export default InventoryModel;
