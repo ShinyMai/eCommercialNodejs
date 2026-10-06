@@ -57,6 +57,17 @@ test("malformed JSON is normalized to a client error", async () => {
   assert.deepEqual(body.metadata, { items: null });
 });
 
+test("checkout review route requires authentication", async () => {
+  const response = await fetch(`${baseUrl}/checkout/review`, {
+    method: "POST",
+    headers: { "content-type": "application/json" },
+    body: JSON.stringify({ cartId: "invalid", shop_ids: [] }),
+  });
+  const body = await response.json();
+  assert.equal(response.status, 401);
+  assert.equal(body.message, "Missing Bearer access token");
+});
+
 test("seller registration uses the dedicated endpoint and validates store details", async () => {
   const response = await fetch(`${baseUrl}/auth/register/seller`, {
     method: "POST",

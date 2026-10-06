@@ -6,6 +6,7 @@ import productRouter from "#/routes/product/index.js";
 import discountRouter from "#/routes/discount/index.js";
 import accountRouter from "#/routes/accounts/index.js";
 import cartRouter from "#/routes/cart/index.js";
+import checkoutRouter from "#/routes/checkout/index.js";
 import { SuccessResponse } from "#/core/success.response.js";
 
 const router = Router();
@@ -22,5 +23,6 @@ router.use("/products", productRouter);
 router.use("/discounts", discountRouter);
 router.use("/accounts", accountRouter);
 router.use("/cart", cartRouter);
+router.use("/checkout", checkoutRouter);
 
 export default router;

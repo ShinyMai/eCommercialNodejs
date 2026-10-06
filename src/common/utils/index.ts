@@ -29,4 +29,13 @@ const validateObjectId = (id: string, fieldName: string) => {
   return new Types.ObjectId(id);
 };
 
-export { getPagination, getSelectData, validateObjectId };
+const sum = <T>(list: T[], pick: (entry: T) => number) => list.reduce((total, entry) => total + pick(entry), 0);
+
+export { getPagination, getSelectData, validateObjectId, sum };
+export {
+  validateIdString,
+  validateRecord,
+  validateNonEmptyArray,
+  validatePositiveSafeInteger,
+  validateUniqueValue,
+} from "./validation.js";
