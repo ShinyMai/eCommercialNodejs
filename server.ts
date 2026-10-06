@@ -3,9 +3,13 @@ import config from "#/configs/index.js";
 import database from "#/dbs/init.mongodb.js";
 import startDatabaseMonitor from "#/helpers/check.connect.js";
 import log from "#/helpers/logger.js";
+import { connectRedis, disconnectRedis } from "#/configs/redis.config.js";
+import { startReservationCleanup } from "#/helpers/reservation.cleanup.js";
 
 const bootstrap = async () => {
+  await connectRedis();
   await database.connect();
+  const stopReservationCleanup = startReservationCleanup();
   const monitor = startDatabaseMonitor();
   const server = app.listen(config.app.port, () => {
     log.info(`Server is running on port ${config.app.port}`, {
@@ -23,7 +27,8 @@ const bootstrap = async () => {
 
     server.close(async (serverError) => {
       try {
-        await database.disconnect();
+        await stopReservationCleanup();
+        await Promise.all([database.disconnect(), disconnectRedis()]);
         if (serverError) throw serverError;
         log.info("Server stopped");
         process.exit(0);

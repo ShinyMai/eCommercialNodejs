@@ -68,6 +68,19 @@ test("checkout review route requires authentication", async () => {
   assert.equal(body.message, "Missing Bearer access token");
 });
 
+test("order routes require authentication", async () => {
+  for (const [path, method] of [
+    ["/orders", "POST"],
+    ["/orders/507f1f77bcf86cd799439011", "GET"],
+    ["/orders/507f1f77bcf86cd799439011/cancel", "POST"],
+  ]) {
+    const response = await fetch(`${baseUrl}${path}`, { method });
+    const body = await response.json();
+    assert.equal(response.status, 401);
+    assert.equal(body.message, "Missing Bearer access token");
+  }
+});
+
 test("seller registration uses the dedicated endpoint and validates store details", async () => {
   const response = await fetch(`${baseUrl}/auth/register/seller`, {
     method: "POST",

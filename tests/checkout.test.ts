@@ -5,6 +5,7 @@ import CheckoutService, { type ReviewCheckoutPayload } from "../src/services/che
 import { CartModel } from "../src/models/cart.model.js";
 import DiscountService from "../src/services/discount.service.js";
 import CheckoutController from "../src/controllers/checkout.controller.js";
+import { InventoryModel } from "../src/models/inventory.model.js";
 import { ProductModel } from "../src/models/products.model.js";
 
 const buyer = new Types.ObjectId();
@@ -27,6 +28,7 @@ test("checkout accepts string IDs, checks cart owner and resolves stored prices"
     assert.equal(filter._id.$in[0], product.toHexString());
     return { select() { return this; }, lean() { return this; }, exec: async () => [{ _id: product, product_seller: seller, product_price: 20 }] };
   });
+  t.mock.method(InventoryModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [{ inven_productId: product, inven_sellerId: seller, inven_stock: 10 }] }));
   const result = await CheckoutService.reviewCheckout(makePayload());
   assert.equal(result.checkout_order.total_price, 40);
   assert.equal(result.checkout_summary[0].items[0].price, 20);
@@ -69,6 +71,7 @@ test("service preserves string IDs and overrides body accountId with authenticat
     return { cart_items: [{ product }] };
   });
   t.mock.method(ProductModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [{ _id: product, product_seller: seller, product_price: 20 }] }));
+  t.mock.method(InventoryModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [{ inven_productId: product, inven_sellerId: seller, inven_stock: 10 }] }));
   const result = await CheckoutService.reviewCheckout({ cartId: cart.toHexString(), accountId: "invalid", shop_ids: [{ shop_id: seller.toHexString(), items: [{ product_id: product.toHexString(), quantity: 2 }] }] }, buyer.toHexString());
   assert.equal(result.checkout_order.total_price, 40);
   assert.equal(result.checkout_summary[0].shop_id, seller.toHexString());
@@ -84,6 +87,10 @@ test("checkout applies each shop discount once and propagates coupon errors", as
   t.mock.method(ProductModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [
     { _id: product, product_seller: seller, product_price: 20 },
     { _id: secondProduct, product_seller: secondSeller, product_price: 30 },
+  ] }));
+  t.mock.method(InventoryModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [
+    { inven_productId: product, inven_sellerId: seller, inven_stock: 10 },
+    { inven_productId: secondProduct, inven_sellerId: secondSeller, inven_stock: 10 },
   ] }));
   let failure: Error | undefined;
   let changedPrice = false;
@@ -119,3 +126,32 @@ test("checkout applies each shop discount once and propagates coupon errors", as
 
 
 
+
+
+test("checkout checks inventory by product and seller before calculating discounts", async (t) => {
+  t.mock.method(CartModel, "findOne", async () => ({ cart_items: [{ product }] }));
+  t.mock.method(ProductModel, "find", () => ({ select() { return this; }, lean() { return this; }, exec: async () => [{ _id: product, product_seller: seller, product_price: 20 }] }));
+  let stock = 2;
+  let missing = false;
+  let wrongSeller = false;
+  const inventoryQuery = t.mock.method(InventoryModel, "find", (filter: unknown) => {
+    assert.deepEqual(filter, { $or: [{ inven_productId: product.toHexString(), inven_sellerId: seller.toHexString() }] });
+    return { select() { return this; }, lean() { return this; }, exec: async () => missing ? [] : [{ inven_productId: product, inven_sellerId: wrongSeller ? new Types.ObjectId() : seller, inven_stock: stock }] };
+  });
+  const discount = t.mock.method(DiscountService, "getDiscountAmount", async () => ({ totalPrice: 40, eligibleTotalPrice: 40, discountAmount: 5, finalPrice: 35 }));
+  const payload = makePayload();
+  payload.shop_ids[0].discount_id = new Types.ObjectId().toHexString();
+  assert.equal((await CheckoutService.reviewCheckout(payload)).checkout_order.total_discount, 5);
+  assert.equal(inventoryQuery.mock.callCount(), 1);
+  assert.equal(discount.mock.callCount(), 1);
+  for (const remaining of [1, 0, NaN, -1]) {
+    stock = remaining;
+    await assert.rejects(CheckoutService.reviewCheckout(payload), { name: "ConflictRequestError", statusCode: 409 });
+  }
+  missing = true;
+  await assert.rejects(CheckoutService.reviewCheckout(payload), /Inventory is not available/);
+  missing = false;
+  wrongSeller = true;
+  await assert.rejects(CheckoutService.reviewCheckout(payload), /Inventory is not available/);
+  assert.equal(discount.mock.callCount(), 1);
+});
