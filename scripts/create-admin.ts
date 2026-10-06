@@ -1,8 +1,6 @@
-"use strict";
-
-import { parseSignUpPayload } from "#/auth/validation.js";
+import { parseSignUpPayload } from "#/validators/auth.validator.js";
 import config from "#/configs/index.js";
-import db from "#/dbs/init.mongodb.js";
+import db from "#/configs/mongodb.config.js";
 import { AccountModel } from "#/models/account.model.js";
 import { UserProfileModel } from "#/models/userProfile.model.js";
 import bcrypt from "bcrypt";

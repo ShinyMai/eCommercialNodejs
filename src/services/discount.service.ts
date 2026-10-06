@@ -1,260 +1,170 @@
-"use strict";
-
-import { Types } from "mongoose";
-import { DiscountModel } from "#/models/discount.model.js";
+import { Types, type ClientSession, type QueryFilter } from "mongoose";
 import { BadRequestError, ConflictRequestError, NotFoundError } from "#/core/error.response.js";
-import { validateObjectId } from "#/common/utils/index.js";
-import { ProductModel } from "#/models/products.model.js";
 import type { Discount } from "#/models/discount.model.js";
-import type { QueryFilter } from "mongoose";
+import {
+  createDiscount,
+  discountCodeExists,
+  findApplicableDiscount,
+  findDiscountRules,
+  findDiscounts,
+  sellerDiscountFilter,
+  updateSellerDiscount,
+} from "#/repositories/discount.repo.js";
+import { countSellerProducts, findSellerProductPrices } from "#/repositories/product.repo.js";
+import { sum, validateObjectId } from "#/utils/index.js";
+import {
+  parseDiscountInput,
+  validateDiscountCartItems,
+  validateDiscountRules,
+  type DiscountCartItemInput,
+  type DiscountInput,
+} from "#/validators/discount.validator.js";
 
-type DiscountType = "percentage" | "fixed_amount";
-type DiscountAppliesTo = "all" | "specific_products";
+export type { CalculateDiscountInput, DiscountInput } from "#/validators/discount.validator.js";
 
-export interface DiscountInput {
-  discount_name: string;
-  discount_description: string;
-  discount_type: DiscountType;
-  discount_value: number;
-  discount_code: string;
-  discount_start_date: Date | string;
-  discount_end_date: Date | string;
-  discount_max_uses: number;
-  discount_minimum_purchase: number;
-  discount_applies_to: DiscountAppliesTo;
-  discount_productIds: string[];
-}
+type PricedProduct = { _id: Types.ObjectId; product_price: number };
+type ApplicableDiscount = Pick<
+  Discount,
+  | "discount_type"
+  | "discount_value"
+  | "discount_minimum_purchase"
+  | "discount_used_count"
+  | "discount_max_uses"
+  | "discount_used_by_accounts"
+  | "discount_start_date"
+  | "discount_end_date"
+  | "discount_status"
+  | "discount_applies_to"
+  | "discount_productIds"
+>;
 
-export interface DiscountCartItemInput {
-  productId: string;
-  quantity: number;
-}
+const NOT_FOUND_MESSAGE = "Discount code does not exist for this seller";
 
-export interface CalculateDiscountInput {
-  products: DiscountCartItemInput[];
-  sellerId: string;
-}
-
-const DISCOUNT_FIELDS: readonly (keyof DiscountInput)[] = [
-  "discount_name",
-  "discount_description",
-  "discount_type",
-  "discount_value",
-  "discount_code",
-  "discount_start_date",
-  "discount_end_date",
-  "discount_max_uses",
-  "discount_minimum_purchase",
-  "discount_applies_to",
-  "discount_productIds",
-];
-
-const parseDiscountInput = (
-  value: DiscountInput | Partial<DiscountInput>,
-  partial: boolean,
-): Partial<DiscountInput> => {
-  if (!value || typeof value !== "object" || Array.isArray(value)) {
-    throw new BadRequestError("Discount payload must be an object");
-  }
-  const source = value;
-  const result: Partial<DiscountInput> = {};
-  for (const field of DISCOUNT_FIELDS) {
-    if (source[field] !== undefined) Object.assign(result, { [field]: source[field] });
-  }
-
-  if (!partial) {
-    const required = DISCOUNT_FIELDS.filter((field) => field !== "discount_productIds");
-    if (required.some((field) => result[field] === undefined)) {
-      throw new BadRequestError("Missing required discount fields");
-    }
-    result.discount_productIds ??= [];
-  } else if (!Object.keys(result).length) {
-    throw new BadRequestError("No supported discount fields to update");
-  }
-
-  for (const field of ["discount_name", "discount_description", "discount_code"] as const) {
-    if (result[field] !== undefined) {
-      if (typeof result[field] !== "string" || !(result[field] as string).trim()) {
-        throw new BadRequestError(`${field} must be a non-empty string`);
-      }
-      result[field] = (result[field] as string).trim();
-    }
-  }
-  if (typeof result.discount_code === "string") {
-    result.discount_code = result.discount_code.toUpperCase();
-  }
-  if (result.discount_type !== undefined && !["percentage", "fixed_amount"].includes(String(result.discount_type))) {
-    throw new BadRequestError("discount_type must be percentage or fixed_amount");
-  }
-  if (result.discount_applies_to !== undefined && !["all", "specific_products"].includes(String(result.discount_applies_to))) {
-    throw new BadRequestError("discount_applies_to must be all or specific_products");
-  }
-  for (const field of ["discount_value", "discount_minimum_purchase"] as const) {
-    if (result[field] !== undefined &&
-      (typeof result[field] !== "number" || !Number.isFinite(result[field]) || (result[field] as number) < 0)) {
-      throw new BadRequestError(`${field} must be a non-negative number`);
-    }
-  }
-  if (result.discount_max_uses !== undefined &&
-    (typeof result.discount_max_uses !== "number" || !Number.isInteger(result.discount_max_uses) || result.discount_max_uses <= 0)) {
-    throw new BadRequestError("discount_max_uses must be a positive integer");
-  }
-  if (result.discount_type === "percentage" && Number(result.discount_value) > 100) {
-    throw new BadRequestError("Percentage discount cannot exceed 100");
-  }
-  if (result.discount_productIds !== undefined) {
-    if (!Array.isArray(result.discount_productIds) || result.discount_productIds.some((id) => typeof id !== "string")) {
-      throw new BadRequestError("discount_productIds must be an array of IDs");
-    }
-    result.discount_productIds = [...new Set(result.discount_productIds as string[])];
-    (result.discount_productIds as string[]).forEach((id) => validateObjectId(id, "discount_productIds"));
-  }
-  return result;
-};
-
-const assertProductsBelongToSeller = async (
-  sellerId: Types.ObjectId,
-  productIds: string[],
-) => {
+const assertProductsBelongToSeller = async (sellerId: Types.ObjectId, productIds: string[]) => {
   if (!productIds.length) return;
-  const count = await ProductModel.countDocuments({
-    _id: { $in: productIds.map((id) => new Types.ObjectId(id)) },
-    product_seller: sellerId,
-  });
-  if (count !== productIds.length) {
+  if ((await countSellerProducts(productIds, sellerId)) !== productIds.length) {
     throw new BadRequestError("One or more discount products do not belong to this seller");
   }
+};
+
+const assertDiscountUsable = (discount: ApplicableDiscount, buyerId: Types.ObjectId, now = new Date()) => {
+  if (!discount.discount_status) throw new BadRequestError("Discount code is inactive");
+  if (now < discount.discount_start_date) throw new BadRequestError("Discount code has not started yet");
+  if (now > discount.discount_end_date) throw new BadRequestError("Discount code has expired");
+  if (discount.discount_used_count >= discount.discount_max_uses) {
+    throw new BadRequestError("Discount code has reached its maximum usage limit");
+  }
+  if (discount.discount_used_by_accounts.some((id) => id.equals(buyerId))) {
+    throw new BadRequestError("User has already used this discount code");
+  }
+};
+
+/** Pure pricing logic: the discount never exceeds the value of the eligible products. */
+const calculateDiscount = (
+  discount: ApplicableDiscount,
+  products: PricedProduct[],
+  quantityByProductId: Map<string, number>,
+) => {
+  const lineTotal = (product: PricedProduct) =>
+    product.product_price * (quantityByProductId.get(product._id.toString()) ?? 0);
+  const totalPrice = sum(products, lineTotal);
+
+  if (discount.discount_minimum_purchase > 0 && totalPrice < discount.discount_minimum_purchase) {
+    throw new BadRequestError(`Minimum purchase amount is ${discount.discount_minimum_purchase}`);
+  }
+
+  let eligibleProducts = products;
+  if (discount.discount_applies_to === "specific_products") {
+    const eligibleIds = new Set(discount.discount_productIds.map((id) => id.toString()));
+    eligibleProducts = products.filter((product) => eligibleIds.has(product._id.toString()));
+    if (!eligibleProducts.length) throw new BadRequestError("Discount does not apply to any selected product");
+  }
+  const eligibleTotalPrice = sum(eligibleProducts, lineTotal);
+
+  let rawDiscount: number;
+  switch (discount.discount_type) {
+    case "percentage":
+      rawDiscount = (discount.discount_value / 100) * eligibleTotalPrice;
+      break;
+    case "fixed_amount":
+      rawDiscount = discount.discount_value;
+      break;
+    default:
+      throw new BadRequestError("Invalid discount type");
+  }
+
+  const discountAmount = Math.min(rawDiscount, eligibleTotalPrice);
+  return {
+    totalPrice,
+    eligibleTotalPrice,
+    discountAmount,
+    finalPrice: Math.max(totalPrice - discountAmount, 0),
+  };
 };
 
 class DiscountService {
   static async createDiscountCode(input: DiscountInput, sellerIdInput: string) {
     const discount = parseDiscountInput(input, false) as DiscountInput;
-    const now = new Date();
+    const sellerId = validateObjectId(sellerIdInput, "discount_sellerId");
     const startDate = new Date(discount.discount_start_date);
     const endDate = new Date(discount.discount_end_date);
-    const sellerId = validateObjectId(sellerIdInput, "discount_sellerId");
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestError("Discount start and end dates must be valid");
-    }
-
-    if (startDate < now) {
-      throw new BadRequestError("Discount start date must be after the current date");
-    }
-
-    if (endDate <= startDate) {
-      throw new BadRequestError("Discount end date must be after the start date");
-    }
-
-    if (
-      discount.discount_applies_to === "specific_products" &&
-      (!discount.discount_productIds || discount.discount_productIds.length === 0)
-    ) {
-      throw new BadRequestError(
-        "Discount must apply to at least one product when 'discount_applies_to' is 'specific_products'",
-      );
-    }
-    await assertProductsBelongToSeller(sellerId, discount.discount_productIds);
-    const existingDiscount = await DiscountModel.exists({
-      discount_code: discount.discount_code,
-      discount_sellerId: sellerId,
+    validateDiscountRules({
+      startDate,
+      endDate,
+      startDateChanged: true,
+      type: discount.discount_type,
+      value: discount.discount_value,
+      appliesTo: discount.discount_applies_to,
+      productIds: discount.discount_productIds,
     });
+    await assertProductsBelongToSeller(sellerId, discount.discount_productIds);
 
-    if (existingDiscount) {
+    if (await discountCodeExists(discount.discount_code, sellerId)) {
       throw new ConflictRequestError("Discount code already exists for this seller");
     }
 
-    return DiscountModel.create({
+    return createDiscount({
       ...discount,
+      discount_productIds: discount.discount_productIds.map((id) => new Types.ObjectId(id)),
       discount_start_date: startDate,
       discount_end_date: endDate,
       discount_sellerId: sellerId,
     });
   }
 
-  static async updateDiscountCode(
-    discountId: string,
-    input: Partial<DiscountInput>,
-    sellerIdInput: string,
-  ) {
-    const discount = parseDiscountInput(input, true);
-    const now = new Date();
-    const discountObjectId = validateObjectId(discountId, "discountId");
-    const sellerId = validateObjectId(sellerIdInput, "discount_sellerId");
-    const existingDiscount = await DiscountModel.findOne({
-      _id: discountObjectId,
-      discount_sellerId: sellerId,
-      is_deleted: false,
-    })
-      .select(
-        "discount_start_date discount_end_date discount_type discount_value " +
-        "discount_applies_to discount_productIds",
-      )
-      .lean();
+  static async updateDiscountCode(discountId: string, input: Partial<DiscountInput>, sellerIdInput: string) {
+    const changes = parseDiscountInput(input, true);
+    const filter = sellerDiscountFilter(
+      validateObjectId(discountId, "discountId"),
+      validateObjectId(sellerIdInput, "discount_sellerId"),
+    );
 
-    if (!existingDiscount) {
-      throw new NotFoundError("Discount code does not exist for this seller");
-    }
+    const existing = await findDiscountRules(filter);
+    if (!existing) throw new NotFoundError(NOT_FOUND_MESSAGE);
 
-    const startDate = discount.discount_start_date
-      ? new Date(discount.discount_start_date)
-      : existingDiscount.discount_start_date;
-    const endDate = discount.discount_end_date
-      ? new Date(discount.discount_end_date)
-      : existingDiscount.discount_end_date;
+    const startDate = changes.discount_start_date
+      ? new Date(changes.discount_start_date)
+      : existing.discount_start_date;
+    const endDate = changes.discount_end_date ? new Date(changes.discount_end_date) : existing.discount_end_date;
+    const productIds = changes.discount_productIds ?? existing.discount_productIds.map((id) => id.toString());
 
-    if (Number.isNaN(startDate.getTime()) || Number.isNaN(endDate.getTime())) {
-      throw new BadRequestError("Discount start and end dates must be valid");
-    }
+    validateDiscountRules({
+      startDate,
+      endDate,
+      startDateChanged: Boolean(changes.discount_start_date),
+      type: changes.discount_type ?? existing.discount_type,
+      value: changes.discount_value ?? existing.discount_value,
+      appliesTo: changes.discount_applies_to ?? existing.discount_applies_to,
+      productIds,
+    });
+    await assertProductsBelongToSeller(filter.discount_sellerId, productIds);
 
-    if (discount.discount_start_date && startDate < now) {
-      throw new BadRequestError("Discount start date must be after the current date");
-    }
+    const update: Partial<DiscountInput> = { ...changes };
+    if (changes.discount_start_date) update.discount_start_date = startDate;
+    if (changes.discount_end_date) update.discount_end_date = endDate;
 
-    if (endDate <= startDate) {
-      throw new BadRequestError("Discount end date must be after the start date");
-    }
-
-    const effectiveType = discount.discount_type ?? existingDiscount.discount_type;
-    const effectiveValue = discount.discount_value ?? existingDiscount.discount_value;
-    if (effectiveType === "percentage" && effectiveValue > 100) {
-      throw new BadRequestError("Percentage discount cannot exceed 100");
-    }
-    const effectiveAppliesTo = discount.discount_applies_to ?? existingDiscount.discount_applies_to;
-    const effectiveProductIds = discount.discount_productIds ??
-      existingDiscount.discount_productIds.map((id) => id.toString());
-    if (
-      effectiveAppliesTo === "specific_products" &&
-      effectiveProductIds.length === 0
-    ) {
-      throw new BadRequestError(
-        "Discount must apply to at least one product when 'discount_applies_to' is 'specific_products'",
-      );
-    }
-    await assertProductsBelongToSeller(sellerId, effectiveProductIds);
-
-    const updateData: Partial<DiscountInput> = { ...discount };
-    if (discount.discount_start_date) {
-      updateData.discount_start_date = startDate;
-    }
-    if (discount.discount_end_date) {
-      updateData.discount_end_date = endDate;
-    }
-
-    return DiscountModel.findOneAndUpdate(
-      {
-        _id: discountObjectId,
-        discount_sellerId: sellerId,
-        is_deleted: false,
-      },
-      {
-        $set: updateData,
-      },
-      {
-        new: true,
-        runValidators: true,
-      },
-    ).exec();
+    return updateSellerDiscount(filter, update, { runValidators: true }).exec();
   }
 
   static async getListDiscountCode({
@@ -275,17 +185,10 @@ class DiscountService {
       discount_start_date: { $lte: now },
       discount_end_date: { $gte: now },
     };
+    if (productId) filter.discount_productIds = validateObjectId(productId, "productId");
+    if (sellerId) filter.discount_sellerId = validateObjectId(sellerId, "sellerId");
 
-    if (productId) {
-      filter.discount_productIds = validateObjectId(productId, "productId");
-    }
-
-    if (sellerId) {
-      filter.discount_sellerId = validateObjectId(sellerId, "sellerId");
-    }
-
-    const skip = (page - 1) * limit;
-    return DiscountModel.find(filter).sort({ createdAt: -1 }).limit(limit).skip(skip).lean().exec();
+    return findDiscounts(filter, { skip: (page - 1) * limit, limit });
   }
 
   static async getDiscountAmount(
@@ -293,220 +196,47 @@ class DiscountService {
     products: DiscountCartItemInput[],
     sellerId: string,
     buyerAccountId: string,
-    session?: import("mongoose").ClientSession,
+    session?: ClientSession,
   ) {
-    if (!products.length) {
-      throw new BadRequestError("Products cannot be empty");
-    }
-
+    validateDiscountCartItems(products);
     const discountObjectId = validateObjectId(discountId, "discountId");
     const sellerObjectId = validateObjectId(sellerId, "sellerId");
-    const buyerAccountObjectId = validateObjectId(buyerAccountId, "buyerAccountId");
+    const buyerObjectId = validateObjectId(buyerAccountId, "buyerAccountId");
 
-    products.forEach((product, index) => {
-      if (!product || typeof product.productId !== "string") {
-        throw new BadRequestError(`products[${index}].productId must be a string`);
-      }
-      validateObjectId(product.productId, `products[${index}].productId`);
+    const discount = await findApplicableDiscount(sellerDiscountFilter(discountObjectId, sellerObjectId), session);
+    if (!discount) throw new NotFoundError(NOT_FOUND_MESSAGE);
+    assertDiscountUsable(discount, buyerObjectId);
 
-      if (!Number.isInteger(product.quantity) || product.quantity <= 0) {
-        throw new BadRequestError(`products[${index}].quantity must be a positive integer`);
-      }
-    });
-    if (new Set(products.map((product) => product.productId)).size !== products.length) {
-      throw new BadRequestError("Products must not contain duplicate productId values");
-    }
-    const productObjectIds = products.map((product) => new Types.ObjectId(product.productId));
-
-    // 1. Get discount
-    const discountQuery = DiscountModel.findOne({
-      _id: discountObjectId,
-      discount_sellerId: sellerObjectId,
-      is_deleted: false,
-    });
-    if (session) discountQuery.session(session);
-    const discount = await discountQuery.select({
-        discount_type: 1,
-        discount_value: 1,
-        discount_minimum_purchase: 1,
-
-        discount_used_count: 1,
-        discount_max_uses: 1,
-        discount_used_by_accounts: 1,
-
-        discount_start_date: 1,
-        discount_end_date: 1,
-
-        discount_status: 1,
-
-        discount_applies_to: 1,
-        discount_productIds: 1,
-      })
-      .lean();
-
-    if (!discount) {
-      throw new NotFoundError("Discount code does not exist for this seller");
-    }
-
-    // 2. Validate discount
-    const now = new Date();
-
-    if (!discount.discount_status) {
-      throw new BadRequestError("Discount code is inactive");
-    }
-
-    if (now < discount.discount_start_date) {
-      throw new BadRequestError("Discount code has not started yet");
-    }
-
-    if (now > discount.discount_end_date) {
-      throw new BadRequestError("Discount code has expired");
-    }
-
-    if (discount.discount_used_count >= discount.discount_max_uses) {
-      throw new BadRequestError("Discount code has reached its maximum usage limit");
-    }
-
-    const hasUsedDiscount = discount.discount_used_by_accounts.some((id) =>
-      id.equals(buyerAccountObjectId),
+    // Every product must exist and belong to the discount's seller.
+    const pricedProducts = await findSellerProductPrices(
+      products.map((product) => new Types.ObjectId(product.productId)),
+      sellerObjectId,
+      session,
     );
-
-    if (hasUsedDiscount) {
-      throw new BadRequestError("User has already used this discount code");
-    }
-
-    // 3. Get products
-    const productsQuery = ProductModel.find({
-      _id: {
-        $in: productObjectIds,
-      },
-
-      // Make sure all products belong to this seller.
-      product_seller: sellerObjectId,
-    });
-    if (session) productsQuery.session(session);
-    const productsData = await productsQuery.select({
-        _id: 1,
-        product_price: 1,
-      })
-      .lean();
-
-    if (productsData.length !== productObjectIds.length) {
+    if (pricedProducts.length !== products.length) {
       throw new BadRequestError("One or more products do not exist for this seller");
     }
 
-    // 4. Map quantity
-    const quantityMap = new Map(products.map((item) => [item.productId, item.quantity]));
-
-    // 5. Calculate cart total
-    const totalPrice = productsData.reduce((total, product) => {
-      const quantity = quantityMap.get(product._id.toString()) ?? 0;
-
-      return total + product.product_price * quantity;
-    }, 0);
-
-    // 6. Check minimum purchase
-    if (discount.discount_minimum_purchase > 0 && totalPrice < discount.discount_minimum_purchase) {
-      throw new BadRequestError(`Minimum purchase amount is ${discount.discount_minimum_purchase}`);
-    }
-
-    // 7. Determine eligible products
-    let eligibleProducts = productsData;
-
-    if (discount.discount_applies_to === "specific_products") {
-      const eligibleProductIds = new Set(discount.discount_productIds.map((id) => id.toString()));
-
-      eligibleProducts = productsData.filter((product) => eligibleProductIds.has(product._id.toString()));
-
-      if (!eligibleProducts.length) {
-        throw new BadRequestError("Discount does not apply to any selected product");
-      }
-    }
-
-    // 8. Calculate price eligible for discount
-    const eligibleTotalPrice = eligibleProducts.reduce((total, product) => {
-      const quantity = quantityMap.get(product._id.toString()) ?? 0;
-
-      return total + product.product_price * quantity;
-    }, 0);
-
-    // 9. Calculate discount
-    let discountAmount = 0;
-
-    switch (discount.discount_type) {
-      case "percentage":
-        discountAmount = (discount.discount_value / 100) * eligibleTotalPrice;
-        break;
-
-      case "fixed_amount":
-        discountAmount = discount.discount_value;
-        break;
-
-      default:
-        throw new BadRequestError("Invalid discount type");
-    }
-
-    // Discount cannot exceed eligible product value
-    discountAmount = Math.min(discountAmount, eligibleTotalPrice);
-
-    const finalPrice = Math.max(totalPrice - discountAmount, 0);
-
-    return {
-      totalPrice,
-      eligibleTotalPrice,
-      discountAmount,
-      finalPrice,
-    };
+    const quantityByProductId = new Map(products.map((item) => [item.productId, item.quantity]));
+    return calculateDiscount(discount, pricedProducts, quantityByProductId);
   }
 
-  static async deleteDiscountCode(discountId: string, sellerId: string) {
-    const discountObjectId = validateObjectId(discountId, "discountId");
-    const sellerObjectId = validateObjectId(sellerId, "sellerId");
-
-    const softDeleteResult = await DiscountModel.findOneAndUpdate(
-      {
-        _id: discountObjectId,
-        discount_sellerId: sellerObjectId,
-        is_deleted: false,
-      },
-      {
-        $set: { is_deleted: true },
-      },
-      {
-        new: true,
-      },
-    ).lean();
-
-    if (!softDeleteResult) {
-      throw new NotFoundError("Discount code does not exist for this seller");
-    }
-
-    return softDeleteResult;
+  static deleteDiscountCode(discountId: string, sellerId: string) {
+    return DiscountService.updateSellerDiscount(discountId, sellerId, { is_deleted: true });
   }
 
-  static async cancelDiscountCode(discountId: string, sellerId: string) {
-    const discountObjectId = validateObjectId(discountId, "discountId");
-    const sellerObjectId = validateObjectId(sellerId, "sellerId");
+  static cancelDiscountCode(discountId: string, sellerId: string) {
+    return DiscountService.updateSellerDiscount(discountId, sellerId, { discount_status: false });
+  }
 
-    const cancelResult = await DiscountModel.findOneAndUpdate(
-      {
-        _id: discountObjectId,
-        discount_sellerId: sellerObjectId,
-        is_deleted: false,
-      },
-      {
-        $set: { discount_status: false },
-      },
-      {
-        new: true,
-      },
-    ).lean();
-
-    if (!cancelResult) {
-      throw new NotFoundError("Discount code does not exist for this seller");
-    }
-
-    return cancelResult;
+  private static async updateSellerDiscount(discountId: string, sellerId: string, update: Partial<Discount>) {
+    const filter = sellerDiscountFilter(
+      validateObjectId(discountId, "discountId"),
+      validateObjectId(sellerId, "sellerId"),
+    );
+    const discount = await updateSellerDiscount(filter, update).lean();
+    if (!discount) throw new NotFoundError(NOT_FOUND_MESSAGE);
+    return discount;
   }
 }
 

@@ -1,11 +1,9 @@
-"use strict";
-
 import config from "#/configs/index.js";
 import { AccountModel } from "#/models/account.model.js";
 import { AuthSessionModel } from "#/models/authSession.model.js";
 import { DiscountModel } from "#/models/discount.model.js";
-import InventoryModel from "#/models/inventory.model.js";
-import { ProductModel } from "#/models/products.model.js";
+import { InventoryModel } from "#/models/inventory.model.js";
+import { ProductModel } from "#/models/product.model.js";
 import { UserProfileModel } from "#/models/userProfile.model.js";
 import bcrypt from "bcrypt";
 import mongoose, { Types } from "mongoose";

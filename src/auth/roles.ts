@@ -1,5 +1,3 @@
-"use strict";
-
 import type { RuntimeValue } from "#/types/value.types.js";
 
 export const ACCOUNT_ROLES = ["buyer", "seller", "admin"] as const;

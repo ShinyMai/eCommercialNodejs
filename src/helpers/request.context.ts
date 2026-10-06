@@ -1,5 +1,3 @@
-"use strict";
-
 import { AsyncLocalStorage } from "async_hooks";
 
 interface RequestContext {

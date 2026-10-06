@@ -1,5 +1,3 @@
-"use strict";
-
 import { randomUUID } from "crypto";
 import { NextFunction, Request, Response } from "express";
 import { runWithRequestContext } from "#/helpers/request.context.js";

@@ -1,5 +1,3 @@
-"use strict";
-
 import crypto from "node:crypto";
 import config from "#/configs/index.js";
 import { AuthFailureError } from "#/core/error.response.js";

@@ -1,5 +1,3 @@
-"use strict";
-
 import logger from "#/configs/logger.config.js";
 import { getRequestId } from "#/helpers/request.context.js";
 import type { RuntimeValue } from "#/types/value.types.js";

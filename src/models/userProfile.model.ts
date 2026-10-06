@@ -1,5 +1,3 @@
-"use strict";
-
 import mongoose, { InferSchemaType, Schema } from "mongoose";
 
 const sellerProfileSchema = new Schema(

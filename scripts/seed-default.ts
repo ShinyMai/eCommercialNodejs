@@ -1,6 +1,4 @@
-"use strict";
-
-import db from "#/dbs/init.mongodb.js";
+import db from "#/configs/mongodb.config.js";
 import { seedDefaultData } from "./default-data.js";
 
 try {

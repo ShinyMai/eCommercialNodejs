@@ -1,78 +1,51 @@
-"use strict";
-
-import {
-  BadRequestError,
-  ConflictRequestError,
-  ErrorResponse,
-} from "#/core/error.response.js";
+import { BadRequestError, ConflictRequestError, ErrorResponse } from "#/core/error.response.js";
+import { isDuplicateKeyError } from "#/utils/mongo.js";
 import type { RuntimeRecord, RuntimeValue } from "#/types/value.types.js";
 
 interface MongoServerErrorLike extends Error {
-  code?: number;
   keyValue?: RuntimeRecord;
 }
 
 interface MongooseValidationErrorLike extends Error {
-  name: "ValidationError";
   errors: Record<string, { message: string }>;
 }
 
 interface MongooseCastErrorLike extends Error {
-  name: "CastError";
   path: string;
-  value: RuntimeValue;
 }
 
-const isMongoDuplicateKeyError = (
-  error: RuntimeValue,
-): error is MongoServerErrorLike =>
-  error instanceof Error &&
-  error.name === "MongoServerError" &&
-  (error as MongoServerErrorLike).code === 11000;
+const isNamedError = (error: RuntimeValue, name: string): error is Error =>
+  error instanceof Error && error.name === name;
 
-const isMongooseValidationError = (
-  error: RuntimeValue,
-): error is MongooseValidationErrorLike =>
-  error instanceof Error && error.name === "ValidationError";
-
-const isMongooseCastError = (error: RuntimeValue): error is MongooseCastErrorLike =>
-  error instanceof Error && error.name === "CastError";
+const isMalformedJsonError = (error: RuntimeValue): boolean =>
+  error instanceof SyntaxError && (error as SyntaxError & { status?: number }).status === 400;
 
 /**
- * Quy đổi các lỗi hạ tầng (Mongoose/MongoDB driver) mà code KHÔNG chủ động throw
- * thành đúng ErrorResponse nghiệp vụ (operational), thay vì để mặc định rơi vào
- * nhóm "lỗi hệ thống 500" chỉ vì chúng không phải instance của ErrorResponse.
+ * Quy đổi các lỗi hạ tầng (Mongoose/MongoDB driver, body parser) mà code KHÔNG chủ động throw
+ * thành đúng ErrorResponse nghiệp vụ (operational).
  *
  * Chỉ nhận diện những lỗi có nguyên nhân RÕ RÀNG là do dữ liệu đầu vào của người dùng.
- * Bất kỳ lỗi nào không khớp pattern nào ở dưới vẫn giữ nguyên là lỗi hệ thống (an toàn,
- * tránh việc lỡ tay "hạ cấp" một bug thật thành lỗi operational rồi bỏ qua không điều tra).
+ * Lỗi không khớp pattern nào vẫn giữ nguyên là lỗi hệ thống, tránh "hạ cấp" một bug thật
+ * thành lỗi operational rồi bỏ qua không điều tra.
  */
 export const normalizeError = (error: RuntimeValue): ErrorResponse | RuntimeValue => {
-  if (error instanceof ErrorResponse) {
-    return error; // đã được phân loại chủ động từ trước -> giữ nguyên
-  }
+  if (error instanceof ErrorResponse) return error;
 
-  if (isMongoDuplicateKeyError(error)) {
-    const field = Object.keys(error.keyValue ?? {})[0] ?? "field";
+  if (isDuplicateKeyError(error)) {
+    const field = Object.keys((error as MongoServerErrorLike).keyValue ?? {})[0] ?? "field";
     return new ConflictRequestError(`${field} already exists`);
   }
 
-  if (isMongooseValidationError(error)) {
-    const firstMessage = Object.values(error.errors)[0]?.message;
+  if (isNamedError(error, "ValidationError")) {
+    const firstMessage = Object.values((error as MongooseValidationErrorLike).errors ?? {})[0]?.message;
     return new BadRequestError(firstMessage ?? "Invalid input data");
   }
 
-  if (isMongooseCastError(error)) {
-    return new BadRequestError(`Invalid value for field "${error.path}"`);
+  if (isNamedError(error, "CastError")) {
+    return new BadRequestError(`Invalid value for field "${(error as MongooseCastErrorLike).path}"`);
   }
 
-  if (
-    error instanceof SyntaxError &&
-    "status" in error &&
-    (error as SyntaxError & { status?: number }).status === 400
-  ) {
-    return new BadRequestError("Malformed JSON body");
-  }
+  if (isMalformedJsonError(error)) return new BadRequestError("Malformed JSON body");
 
-  return error; // không nhận diện được -> để nguyên, error handler sẽ coi là lỗi hệ thống
+  return error;
 };

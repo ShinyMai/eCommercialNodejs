@@ -1,7 +1,5 @@
-"use strict";
-
-import { reasonPhrases } from "#/common/constants/reasonPhrases.js";
-import { statusCodes } from "#/common/constants/statusCodes.js";
+import { reasonPhrases } from "#/constants/reasonPhrases.js";
+import { statusCodes } from "#/constants/statusCodes.js";
 
 class ErrorResponse extends Error {
   /**

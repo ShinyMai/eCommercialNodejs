@@ -1,5 +1,3 @@
-"use strict";
-
 import winston from "winston";
 import path from "path";
 import config from "#/configs/index.js";

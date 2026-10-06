@@ -1,11 +1,9 @@
-"use strict";
-
 import { verifyAccessToken } from "#/auth/token.js";
 import { isAccountRole, type AccountRole } from "#/auth/roles.js";
 import { AuthFailureError } from "#/core/error.response.js";
 import { asyncHandler } from "#/helpers/asyncHandler.js";
 import AuthSessionService from "#/services/authSession.service.js";
-import { findActiveAccountById } from "#/models/repositories/account.repo.js";
+import { findActiveAccountById } from "#/repositories/account.repo.js";
 import type { NextFunction, Request, Response } from "express";
 import type { ParamsDictionary } from "express-serve-static-core";
 import type { ParsedQs } from "qs";

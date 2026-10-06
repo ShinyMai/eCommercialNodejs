@@ -1,5 +1,3 @@
-"use strict";
-
 import { TooManyRequestsError } from "#/core/error.response.js";
 import type { NextFunction, Request, RequestHandler, Response } from "express";
 
