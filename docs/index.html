@@ -1,0 +1,2104 @@
+<!doctype html>
+<html lang="vi">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>eCommercial API Docs</title>
+<meta name="description" content="Tài liệu kiến trúc, flow nghiệp vụ và API reference của backend eCommercial Node.js">
+<style>
+:root {
+  --bg: #ffffff;
+  --bg-soft: #f6f7f9;
+  --bg-code: #f3f4f6;
+  --panel: #ffffff;
+  --border: #e3e5e8;
+  --text: #1c1f24;
+  --text-soft: #5b6270;
+  --accent: #2f6fed;
+  --accent-soft: #e8efff;
+  --get: #1a7f5a; --get-bg: #e3f5ec;
+  --post: #2f6fed; --post-bg: #e8efff;
+  --patch: #a15c00; --patch-bg: #fdf0dc;
+  --delete: #c4323a; --delete-bg: #fde6e7;
+  --ok: #1a7f5a;
+  --warn: #a15c00;
+  --err: #c4323a;
+  --shadow: 0 1px 2px rgba(16, 24, 40, .06);
+  --sidebar-w: 280px;
+  --header-h: 56px;
+  --radius: 10px;
+  --mono: ui-monospace, SFMono-Regular, "Cascadia Code", Menlo, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f1115; --bg-soft: #151820; --bg-code: #1b1f29; --panel: #151820;
+    --border: #2a2f3a; --text: #e6e8ec; --text-soft: #9aa3b2;
+    --accent: #6c9bff; --accent-soft: #1d2a47;
+    --get: #4cc99a; --get-bg: #12352a; --post: #6c9bff; --post-bg: #1d2a47;
+    --patch: #f0b25a; --patch-bg: #3a2b14; --delete: #ff7a80; --delete-bg: #3d1a1d;
+    --ok: #4cc99a; --warn: #f0b25a; --err: #ff7a80; --shadow: none;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f1115; --bg-soft: #151820; --bg-code: #1b1f29; --panel: #151820;
+  --border: #2a2f3a; --text: #e6e8ec; --text-soft: #9aa3b2;
+  --accent: #6c9bff; --accent-soft: #1d2a47;
+  --get: #4cc99a; --get-bg: #12352a; --post: #6c9bff; --post-bg: #1d2a47;
+  --patch: #f0b25a; --patch-bg: #3a2b14; --delete: #ff7a80; --delete-bg: #3d1a1d;
+  --ok: #4cc99a; --warn: #f0b25a; --err: #ff7a80; --shadow: none;
+}
+
+* { box-sizing: border-box; }
+html { scroll-padding-top: calc(var(--header-h) + 16px); }
+body {
+  margin: 0; background: var(--bg); color: var(--text);
+  font: 15px/1.65 system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+}
+a { color: var(--accent); text-decoration: none; }
+a:hover { text-decoration: underline; }
+code, pre { font-family: var(--mono); font-size: 13px; }
+
+/* Header */
+header.top {
+  position: sticky; top: 0; z-index: 20; height: var(--header-h);
+  display: flex; align-items: center; gap: 12px; padding: 0 16px;
+  background: color-mix(in srgb, var(--bg) 92%, transparent); backdrop-filter: blur(8px);
+  border-bottom: 1px solid var(--border);
+}
+header.top .brand { font-weight: 700; white-space: nowrap; color: var(--text); }
+header.top .brand small { color: var(--text-soft); font-weight: 500; margin-left: 6px; }
+.search { flex: 1; max-width: 420px; margin-left: auto; position: relative; }
+.search input {
+  width: 100%; height: 36px; padding: 0 12px 0 34px; border-radius: 8px;
+  border: 1px solid var(--border); background: var(--bg-soft); color: var(--text); font: inherit;
+}
+.search input:focus { outline: 2px solid var(--accent); outline-offset: -1px; }
+.search svg { position: absolute; left: 10px; top: 10px; color: var(--text-soft); }
+.icon-btn {
+  height: 36px; min-width: 36px; padding: 0 10px; border-radius: 8px; cursor: pointer;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text); font: inherit;
+}
+.icon-btn:hover { background: var(--bg-soft); }
+#menuBtn { display: none; }
+
+/* Layout */
+.layout { display: grid; grid-template-columns: var(--sidebar-w) minmax(0, 1fr); }
+nav.sidebar {
+  position: sticky; top: var(--header-h); height: calc(100vh - var(--header-h));
+  overflow-y: auto; padding: 16px 12px 40px; border-right: 1px solid var(--border); background: var(--bg-soft);
+}
+nav.sidebar h4 {
+  margin: 18px 8px 6px; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-soft);
+}
+nav.sidebar h4:first-child { margin-top: 0; }
+nav.sidebar a {
+  display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 6px;
+  color: var(--text); font-size: 14px; line-height: 1.35;
+}
+nav.sidebar a:hover { background: var(--panel); text-decoration: none; }
+nav.sidebar a.active { background: var(--accent-soft); color: var(--accent); font-weight: 600; }
+nav.sidebar a.sub { padding-left: 14px; font-size: 13px; color: var(--text-soft); }
+nav.sidebar a.sub code { font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+nav.sidebar .hidden { display: none; }
+
+main { min-width: 0; padding: 32px 48px 120px; max-width: 1100px; }
+section.doc { padding-bottom: 32px; margin-bottom: 40px; border-bottom: 1px solid var(--border); }
+section.doc:last-child { border-bottom: 0; }
+
+/* Markdown content */
+.md h1 { font-size: 28px; line-height: 1.25; margin: 0 0 16px; }
+.md h2 { font-size: 21px; margin: 36px 0 12px; padding-top: 4px; }
+.md h3 { font-size: 17px; margin: 24px 0 8px; }
+.md p, .md ul, .md ol { margin: 0 0 14px; }
+.md li { margin: 3px 0; }
+.md code { background: var(--bg-code); padding: 1px 6px; border-radius: 5px; }
+.md pre {
+  background: var(--bg-code); padding: 14px 16px; border-radius: var(--radius);
+  overflow-x: auto; border: 1px solid var(--border); margin: 0 0 16px;
+}
+.md pre code { background: none; padding: 0; }
+.md blockquote {
+  margin: 0 0 16px; padding: 10px 14px; border-left: 4px solid var(--warn);
+  background: var(--patch-bg); border-radius: 0 8px 8px 0;
+}
+.md blockquote p { margin: 0; }
+.md img { max-width: 100%; border-radius: var(--radius); border: 1px solid var(--border); background: #fff; }
+.table-wrap { overflow-x: auto; margin: 0 0 16px; }
+table { border-collapse: collapse; width: 100%; font-size: 14px; }
+th, td { border: 1px solid var(--border); padding: 7px 10px; text-align: left; vertical-align: top; }
+th { background: var(--bg-soft); font-weight: 600; }
+.mermaid {
+  background: var(--panel); border: 1px solid var(--border); border-radius: var(--radius);
+  padding: 16px; margin: 0 0 16px; overflow-x: auto; text-align: center;
+}
+.mermaid svg { max-width: 100%; height: auto; }
+.mermaid.failed { text-align: left; white-space: pre; font-family: var(--mono); font-size: 12px; }
+
+/* API */
+.badge {
+  display: inline-block; min-width: 58px; text-align: center; padding: 2px 8px; border-radius: 6px;
+  font: 700 12px/1.6 var(--mono); letter-spacing: .02em;
+}
+.m-GET { color: var(--get); background: var(--get-bg); }
+.m-POST { color: var(--post); background: var(--post-bg); }
+.m-PATCH { color: var(--patch); background: var(--patch-bg); }
+.m-DELETE { color: var(--delete); background: var(--delete-bg); }
+nav.sidebar .badge { min-width: 46px; font-size: 10px; padding: 0 4px; }
+.auth {
+  font-size: 12px; padding: 2px 8px; border-radius: 999px; border: 1px solid var(--border);
+  color: var(--text-soft); white-space: nowrap;
+}
+.auth.public { color: var(--ok); border-color: color-mix(in srgb, var(--ok) 40%, transparent); }
+.auth.admin { color: var(--err); border-color: color-mix(in srgb, var(--err) 40%, transparent); }
+.group-head { display: flex; align-items: baseline; gap: 12px; flex-wrap: wrap; margin: 36px 0 12px; }
+.group-head h2 { margin: 0; font-size: 21px; }
+details.ep {
+  border: 1px solid var(--border); border-radius: var(--radius); margin: 0 0 10px;
+  background: var(--panel); box-shadow: var(--shadow);
+}
+details.ep > summary {
+  list-style: none; cursor: pointer; display: flex; align-items: center; gap: 10px;
+  padding: 10px 14px; flex-wrap: wrap;
+}
+details.ep > summary::-webkit-details-marker { display: none; }
+details.ep > summary .path { font: 600 14px var(--mono); word-break: break-all; }
+details.ep > summary .sum { color: var(--text-soft); font-size: 14px; flex: 1; min-width: 180px; }
+details.ep > summary .chev { margin-left: auto; transition: transform .15s; color: var(--text-soft); }
+details.ep[open] > summary .chev { transform: rotate(90deg); }
+details.ep[open] > summary { border-bottom: 1px solid var(--border); }
+.ep-body { padding: 14px 16px 6px; }
+.ep-body h5 {
+  margin: 14px 0 6px; font-size: 12px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-soft);
+}
+.ep-body h5:first-child { margin-top: 0; }
+.ep-body p { margin: 0 0 10px; }
+.ep-body code { background: var(--bg-code); padding: 1px 5px; border-radius: 4px; }
+.cols { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); gap: 14px; }
+.cols > div, .ep-body { min-width: 0; }
+.codebox { position: relative; }
+.codebox pre {
+  margin: 0 0 12px; background: var(--bg-code); border: 1px solid var(--border); border-radius: 8px;
+  padding: 12px 14px; overflow: auto; max-height: 420px;
+}
+.codebox pre code { background: none; padding: 0; }
+.copy {
+  position: absolute; top: 6px; right: 6px; font-size: 12px; padding: 2px 8px; border-radius: 6px;
+  border: 1px solid var(--border); background: var(--panel); color: var(--text-soft); cursor: pointer;
+}
+.copy:hover { color: var(--text); }
+.status { font: 700 13px var(--mono); }
+.s2 { color: var(--ok); } .s4 { color: var(--warn); } .s5 { color: var(--err); }
+.flowlink { font-size: 14px; }
+.toolbar { display: flex; gap: 8px; flex-wrap: wrap; margin: 0 0 16px; }
+.empty { color: var(--text-soft); font-style: italic; display: none; }
+.j-key { color: var(--accent); } .j-str { color: var(--ok); } .j-num { color: var(--patch); } .j-lit { color: var(--delete); }
+
+@media (max-width: 1100px) { .cols { grid-template-columns: minmax(0, 1fr); } main { padding: 28px 28px 100px; } }
+@media (max-width: 820px) {
+  #menuBtn { display: inline-block; }
+  .layout { grid-template-columns: 1fr; }
+  nav.sidebar {
+    position: fixed; left: 0; top: var(--header-h); width: min(86vw, 320px); z-index: 30;
+    transform: translateX(-100%); transition: transform .2s; box-shadow: 4px 0 24px rgba(0,0,0,.2);
+  }
+  body.nav-open nav.sidebar { transform: none; }
+  main { padding: 20px 16px 80px; }
+  header.top .brand small { display: none; }
+  .md h1 { font-size: 24px; }
+}
+@media (max-width: 520px) { .search { max-width: none; } header.top .brand { display: none; } }
+</style>
+</head>
+<body>
+<header class="top">
+  <button class="icon-btn" id="menuBtn" aria-label="Mở menu">☰</button>
+  <a class="brand" href="#overview">eCommercial <small>Docs · API v1</small></a>
+  <div class="search">
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+    <input id="search" type="search" placeholder="Tìm endpoint, ví dụ: cart, POST /orders  ( / )" autocomplete="off">
+  </div>
+  <button class="icon-btn" id="themeBtn" title="Đổi giao diện sáng/tối">◐</button>
+</header>
+<div class="layout">
+  <nav class="sidebar" id="sidebar" aria-label="Mục lục"></nav>
+  <main id="content">
+    <noscript><p>Trang tài liệu cần JavaScript để hiển thị nội dung.</p></noscript>
+  </main>
+</div>
+
+<script type="text/markdown" data-id="overview" data-title="Tổng quan" data-group="doc">
+# Tài liệu eCommercial Node.js
+
+Backend Express 5 + TypeScript + MongoDB + Redis. Trang này mô tả **hành vi thực tế của code
+hiện tại**: kiến trúc, flow từng feature và API reference. Khi đổi code, hãy cập nhật file
+`docs/index.html` cho khớp.
+
+## Bắt đầu nhanh
+
+```bash
+npm install
+copy .env.example .env
+npm run db:seed    # dữ liệu mẫu: admin, 2 seller, 1 buyer (mật khẩu ChangeMe123!)
+npm run dev
+```
+
+- Base URL mặc định: `http://localhost:3052/v1/api` (`APP_PORT`, `API_PREFIX`).
+- Yêu cầu MongoDB **replica set** (cho transaction đặt hàng) và Redis (`REDIS_URL`).
+- Kiểm tra toàn bộ: `npm run check` (typecheck → test → build).
+
+## Hành trình mua hàng
+
+```mermaid
+flowchart LR
+  A[Đăng ký / Login] --> B[Access token<br/>+ refresh cookie]
+  B --> C[Duyệt sản phẩm]
+  C --> D[Thêm vào giỏ]
+  D --> E[Checkout review<br/>giá + mã giảm + ship]
+  E --> F[Tạo đơn<br/>giữ hàng 15 phút]
+  F -->|huỷ| G[Hoàn kho]
+  F -->|quá 15 phút| H[Job hết hạn<br/>hoàn kho]
+  F -.->|chưa làm| I[Thanh toán]
+```
+
+## Nội dung
+
+| Mục | Nội dung |
+| --- | --- |
+| [Kiến trúc](#architecture) | Phân tầng, vòng đời request, response envelope, xử lý lỗi, background jobs |
+| [1. Xác thực](#flow-auth) | Đăng ký buyer/seller, login, refresh token rotation, logout |
+| [2. Account & phân quyền](#flow-account) | Hồ sơ, quản trị account, duyệt seller, role hierarchy |
+| [3. Sản phẩm & tồn kho](#flow-product) | Tạo/sửa, publish, tìm kiếm, khởi tạo inventory |
+| [4. Mã giảm giá](#flow-discount) | Quy tắc hợp lệ, công thức tính tiền giảm |
+| [5. Giỏ hàng](#flow-cart) | Thêm/sửa/xoá, kiểm tra tồn kho, ghi đồng thời |
+| [6. Checkout review](#flow-checkout) | Tính giá, giảm giá, phí ship |
+| [7. Đơn hàng & giữ hàng](#flow-order) | Idempotency, Redis lock, transaction, reservation, hết hạn |
+| [API reference](#api) | Mọi endpoint kèm request/response mẫu và mã lỗi |
+
+
+## Trạng thái hiện tại
+
+| Đã có | Chưa có |
+| --- | --- |
+| Auth, session đa thiết bị, phân quyền 3 cấp | Thanh toán, webhook xác nhận thanh toán |
+| CRUD sản phẩm, publish, full-text search | Xác nhận đơn, trừ lượt dùng mã giảm giá |
+| Mã giảm giá theo seller | Phí ship thật, địa chỉ giao hàng, thuế |
+| Giỏ hàng, checkout review | Biến thể sản phẩm, giỏ hàng cho khách vãng lai |
+| Đơn `pending_payment`, giữ hàng, tự hết hạn, huỷ đơn | Integration test với MongoDB replica set/Redis thật |
+</script>
+<script type="text/markdown" data-id="architecture" data-title="Kiến trúc" data-group="doc">
+# Kiến trúc
+
+## Phân tầng
+
+Request chỉ đi theo một chiều; tầng dưới không biết gì về HTTP.
+
+```mermaid
+flowchart TD
+  R[routes/*.route.ts<br/>khai báo endpoint + middleware] --> M[middlewares/<br/>requestId · auth · role · rate limit]
+  M --> C[controllers/<br/>đọc req, gọi service, trả SuccessResponse]
+  C --> V[validators/<br/>parse + chuẩn hoá payload]
+  C --> S[services/<br/>nghiệp vụ, transaction, lock]
+  S --> V
+  S --> RP[repositories/<br/>truy vấn MongoDB dùng lại được]
+  S --> RS[redis.service<br/>distributed lock]
+  RP --> MD[models/<br/>Mongoose schema]
+  J[jobs/<br/>cleanup · DB monitor] --> RP
+```
+
+| Thư mục | Trách nhiệm | Không được làm |
+| --- | --- | --- |
+| `routes/` | Gắn path, middleware, controller | Chứa logic |
+| `controllers/` | Lấy `req.body/params/query/auth`, gọi service, trả response | Truy vấn DB |
+| `validators/` | Kiểm tra kiểu, giới hạn, chuẩn hoá (trim, lowercase, dedupe) | Truy vấn DB |
+| `services/` | Quy tắc nghiệp vụ, transaction, lock, kết hợp nhiều repository | Biết về `req/res` |
+| `repositories/` | Câu query Mongoose cụ thể (filter, select, populate, session) | Quy tắc nghiệp vụ |
+| `models/` | Schema, index, enum dùng chung | |
+
+## Vòng đời một request
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant Client
+  participant MW as Middleware chung
+  participant Auth as authentication + requireMinimumRole
+  participant Ctrl as Controller
+  participant Svc as Service
+  participant DB as MongoDB
+  participant EH as errorHandler
+
+  Client->>MW: HTTP request
+  MW->>MW: gán x-request-id (nhận từ header nếu hợp lệ, ngược lại UUID)
+  MW->>MW: morgan log, helmet, compression, JSON body (≤ 1mb), cookie
+  MW->>Auth: (route cần đăng nhập)
+  Auth->>DB: kiểm tra session còn hiệu lực + account active
+  Auth-->>Ctrl: req.auth = { accountId, sessionId, role }
+  Ctrl->>Svc: gọi nghiệp vụ
+  Svc->>DB: đọc/ghi qua repository
+  Svc-->>Ctrl: kết quả
+  Ctrl-->>Client: 200/201 + response envelope
+  Note over Svc,EH: Bất kỳ lỗi nào ném ra
+  Svc--)EH: throw
+  EH->>EH: normalizeError → log warn (lỗi nghiệp vụ) / error (lỗi hệ thống)
+  EH-->>Client: statusCode + message (500 ẩn chi tiết)
+```
+
+`requestId` được lưu trong `AsyncLocalStorage`, nên mọi dòng log trong cùng request đều
+tự gắn `requestId`.
+
+## Response envelope
+
+Mọi response, kể cả lỗi, đều có cùng một cấu trúc:
+
+```json
+{
+  "statusCode": 200,
+  "message": "Products retrieved successfully",
+  "metadata": {
+    "items": [],
+    "pagination": { "page": 1, "limit": 20 }
+  },
+  "requestId": "6f1c…",
+  "timestamp": "2026-10-07T00:00:00.000Z"
+}
+```
+
+- `metadata.items`: dữ liệu trả về; là `null` khi lỗi.
+- `metadata.pagination`: chỉ có ở API danh sách. `total` chỉ có ở `GET /accounts`.
+- Header `x-request-id` luôn trùng với `requestId` trong body.
+
+## Xử lý lỗi
+
+```mermaid
+flowchart TD
+  E[Lỗi được ném ra] --> K{instanceof ErrorResponse?}
+  K -->|có| OP[Giữ nguyên status + message]
+  K -->|không| N{Nhận diện được?}
+  N -->|Mongo code 11000| C409[409 field already exists]
+  N -->|Mongoose ValidationError| B400[400 message của field đầu tiên]
+  N -->|Mongoose CastError| B400b[400 Invalid value for field]
+  N -->|JSON body hỏng| B400c[400 Malformed JSON body]
+  N -->|không| S500[500 Internal Server Error<br/>log đầy đủ stack]
+```
+
+| Class | HTTP | Dùng khi |
+| --- | --- | --- |
+| `BadRequestError` | 400 | Input sai kiểu/giá trị, mã giảm giá không dùng được |
+| `AuthFailureError` | 401 | Thiếu/sai token, refresh token bị dùng lại |
+| `ForbiddenError` | 403 | Không đủ role, account pending/inactive |
+| `NotFoundError` | 404 | Không tìm thấy tài nguyên hoặc route |
+| `ConflictRequestError` | 409 | Trùng dữ liệu, hết hàng, xung đột đồng thời |
+| `TooManyRequestsError` | 429 | Vượt rate limit |
+| `InternalServerError` | 500 | Lỗi hệ thống (không lộ chi tiết ra client) |
+
+## Background jobs
+
+Được khởi động trong `server.ts` sau khi kết nối Redis và MongoDB thành công.
+
+| Job | Chu kỳ | Việc làm |
+| --- | --- | --- |
+| `reservationCleanup.job` | Chạy ngay khi khởi động, sau đó mỗi 30 giây | Hết hạn tối đa 100 inventory có reservation quá hạn → hoàn kho; chuyển đơn `pending_payment` quá hạn sang `expired` |
+| `databaseMonitor.job` | `DB_MONITOR_INTERVAL_MS` (mặc định 5 phút) | Log số kết nối Mongo và RAM; cảnh báo khi kết nối vượt `số CPU × 5` |
+
+Khi nhận `SIGINT`/`SIGTERM`: ngừng nhận request → chờ job cleanup đang chạy xong → đóng
+MongoDB và Redis → thoát.
+
+## Yêu cầu hạ tầng
+
+- **MongoDB phải là replica set hoặc sharded cluster.** Tạo và huỷ đơn dùng transaction;
+  MongoDB standalone không hỗ trợ transaction.
+- **Redis** (`REDIS_URL`) dùng cho distributed lock khi giữ hàng. Server không khởi động
+  nếu không kết nối được Redis.
+- Rate limiter lưu trong memory của từng process. Khi chạy nhiều instance, hãy chuyển
+  sang store dùng chung hoặc giới hạn ở API gateway.
+</script>
+<script type="text/markdown" data-id="flow-auth" data-title="1. Xác thực & phiên" data-group="flow">
+# 1. Xác thực & phiên đăng nhập
+
+**Code:** `routes/auth.route.ts` → `controllers/auth.controller.ts` → `services/auth.service.ts`,
+`services/authSession.service.ts` · `validators/auth.validator.ts` · `auth/token.ts`
+
+## Mô hình token
+
+| Token | Dạng | Thời hạn | Lưu ở đâu |
+| --- | --- | --- | --- |
+| Access token | JWT HS256: `sub` (accountId), `sid` (sessionId), `tokenUse=access`, `iss`, `aud`, `jti` | `ACCESS_TOKEN_TTL` (mặc định 15 phút) | Client giữ, gửi qua header `Authorization: Bearer …` |
+| Refresh token | Chuỗi ngẫu nhiên 64 byte (base64url) | `REFRESH_COOKIE_MAX_AGE_MS` (mặc định 7 ngày) | Cookie `httpOnly` `refreshToken`, path `/v1/api/auth`. DB chỉ lưu **SHA-256 hash** |
+
+Mỗi lần login tạo một **session** riêng (`auth_sessions`), nên một account có thể đăng nhập
+trên nhiều thiết bị cùng lúc. Logout chỉ thu hồi session hiện tại.
+
+## Đăng ký buyer — `POST /auth/signup`
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant API
+  participant DB as MongoDB
+  C->>API: { name, email, password }
+  API->>API: rate limit signup (10 lần/giờ/IP)
+  API->>API: validate: email hợp lệ ≤254, password 8–72 byte UTF-8, name ≤150
+  API->>DB: email đã tồn tại?
+  alt đã tồn tại
+    API-->>C: 409 Email is already taken
+  end
+  API->>DB: tạo Account (role=buyer, status=active, password bcrypt)
+  API->>DB: tạo UserProfile (name)
+  API->>DB: tạo AuthSession (hash refresh token)
+  alt bất kỳ bước nào lỗi
+    API->>DB: rollback: xoá profile, account, session
+  end
+  API-->>C: 201 { account, accessToken } + Set-Cookie refreshToken
+```
+
+## Đăng ký seller — `POST /auth/register/seller`
+
+Giống signup nhưng **bắt buộc `storeName`** (≤150), `storeDescription` không bắt buộc (≤2000).
+Account được tạo với `role=seller`, `status=pending` và **không được cấp token**. Seller chỉ
+login được sau khi admin duyệt (`PATCH /accounts/:id/approve-seller`).
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending: register/seller
+  pending --> active: admin approve-seller
+  active --> inactive: admin khoá
+  inactive --> active: admin mở khoá
+  note right of pending: login → 403 "Seller registration is pending admin approval"
+  note right of inactive: login → 403 "Account is inactive"
+```
+
+## Đăng nhập — `POST /auth/login`
+
+```mermaid
+flowchart TD
+  A[email + password] --> RL{rate limit<br/>20 lần / 15 phút}
+  RL -->|vượt| E429[429]
+  RL --> V[validate + lowercase email]
+  V --> F[Tìm account theo email]
+  F --> B[bcrypt.compare<br/>dùng hash giả nếu email không tồn tại<br/>để thời gian phản hồi như nhau]
+  B -->|sai| E401[401 Invalid email or password]
+  B -->|đúng| S{status}
+  S -->|pending| E403a[403 pending approval]
+  S -->|inactive| E403b[403 Account is inactive]
+  S -->|active| OK[Tạo session → 200 account + accessToken<br/>Set-Cookie refreshToken]
+```
+
+## Làm mới token — `POST /auth/refresh-token`
+
+Refresh token được lấy từ cookie, hoặc từ body `refreshToken` nếu client không dùng cookie.
+Mỗi lần refresh, token cũ bị **thay mới (rotation)**. Hash token cũ được lưu vào
+`usedTokenHashes` (tối đa 50). Nếu token cũ bị dùng lại, hệ thống coi như token bị lộ và
+**thu hồi cả session**.
+
+```mermaid
+flowchart TD
+  T[refresh token] --> H[hash SHA-256]
+  H --> R1{hash nằm trong<br/>usedTokenHashes?}
+  R1 -->|có| REV[Thu hồi session<br/>401 reuse detected]
+  R1 -->|không| CUR{Session active<br/>có refreshTokenHash = hash?}
+  CUR -->|không| R2{Kiểm tra reuse lần 2<br/>race với request song song}
+  R2 -->|có| REV
+  R2 -->|không| E401[401 Invalid or expired refresh token]
+  CUR -->|có| ROT[findOneAndUpdate có điều kiện:<br/>đổi hash mới, đẩy hash cũ vào lịch sử]
+  ROT -->|thua race| REV
+  ROT --> ACC{Account còn active?}
+  ACC -->|không| X[Thu hồi session<br/>401 Account is unavailable]
+  ACC -->|có| OK[200 accessToken mới<br/>Set-Cookie refresh token mới]
+```
+
+Khi refresh lỗi 401, server cũng xoá cookie refresh. Rate limit: 60 lần / 15 phút.
+
+## Xác thực mỗi request (middleware `authentication`)
+
+```mermaid
+flowchart LR
+  H[Authorization: Bearer token] -->|thiếu| E1[401 Missing Bearer access token]
+  H --> J[verify JWT: chữ ký, iss, aud, hạn, tokenUse=access]
+  J -->|hết hạn| E2[401 Access token expired]
+  J -->|sai| E3[401 Invalid access token]
+  J --> P[Song song: session sid còn hiệu lực?<br/>account sub còn active?]
+  P -->|không| E4[401 Session is invalid or revoked]
+  P --> OK[req.auth = accountId, sessionId, role đọc từ DB]
+```
+
+Role luôn được **đọc lại từ DB** ở mỗi request, không lấy từ JWT. Vì vậy khi admin đổi role
+hoặc khoá account, thay đổi có hiệu lực ngay lập tức.
+
+## Đăng xuất — `POST /auth/logout`
+
+Yêu cầu access token. Thu hồi session hiện tại (`revokedAt = now`) và xoá cookie refresh.
+Các session trên thiết bị khác vẫn hoạt động.
+
+## Tạo admin
+
+Không có API tạo admin. Dùng script: `npm run create:admin` với các biến `ADMIN_NAME`,
+`ADMIN_EMAIL`, `ADMIN_PASSWORD`.
+</script>
+<script type="text/markdown" data-id="flow-account" data-title="2. Account & phân quyền" data-group="flow">
+# 2. Account & phân quyền
+
+**Code:** `routes/account.route.ts` → `controllers/account.controller.ts` → `services/account.service.ts`
+· `validators/account.validator.ts` · `repositories/account.repo.ts` · `auth/roles.ts`
+
+## Mô hình dữ liệu
+
+Thông tin đăng nhập và thông tin cá nhân được tách thành hai collection có quan hệ 1-1:
+
+```mermaid
+erDiagram
+  ACCOUNT ||--|| USER_PROFILE : "profile (virtual)"
+  ACCOUNT ||--o{ AUTH_SESSION : "có nhiều session"
+  ACCOUNT ||--o{ PRODUCT : "product_seller"
+  ACCOUNT ||--o{ DISCOUNT : "discount_sellerId"
+  ACCOUNT {
+    string email UK
+    string password "bcrypt, select:false"
+    enum role "buyer | seller | admin"
+    enum status "pending | active | inactive"
+    bool verified
+  }
+  USER_PROFILE {
+    ObjectId account UK
+    string name
+    string avatarUrl
+    string phone
+    object sellerProfile "storeName, description"
+  }
+```
+
+Sản phẩm, tồn kho và mã giảm giá tham chiếu **account ID** của seller, không tham chiếu profile.
+
+## Phân quyền
+
+Role có thứ bậc: `admin` > `seller` > `buyer`. Middleware `requireMinimumRole(role)`
+(hoặc `authorize(role)` = authentication + kiểm tra role) cho phép mọi role **từ mức đó trở lên**.
+
+| Quyền | buyer | seller | admin |
+| --- | :-: | :-: | :-: |
+| Giỏ hàng, checkout, đặt hàng, hồ sơ cá nhân | ✔ | ✔ | ✔ |
+| Quản lý sản phẩm, mã giảm giá của mình | | ✔ | ✔ |
+| Quản trị account, duyệt seller | | | ✔ |
+
+## Cập nhật hồ sơ — `PATCH /accounts/me/profile`
+
+```mermaid
+flowchart TD
+  I[body] --> O{object?}
+  O -->|không| E1[400]
+  O --> T[name / avatarUrl / phone: phải là string, trim<br/>name không được rỗng]
+  T --> SP{có sellerProfile?}
+  SP -->|có, role < seller| E2[403 Only seller accounts can update seller profile fields]
+  SP -->|có, role ≥ seller| SPV[storeName không rỗng, description là string]
+  SP -->|không| U
+  SPV --> U{có field nào để cập nhật?}
+  U -->|không| E3[400 No supported profile fields to update]
+  U --> DB[findOneAndUpdate profile của chính mình → 200 profile mới]
+```
+
+## Đổi role — `PATCH /accounts/:id/role` (admin)
+
+```mermaid
+flowchart TD
+  A[role mới + sellerProfile?] --> V{id hợp lệ, role hợp lệ?}
+  V -->|không| E400[400]
+  V --> SELF{tự hạ quyền admin của mình?}
+  SELF -->|có| E403[403 An admin cannot remove their own admin role]
+  SELF --> L[Đọc account + profile] -->|không thấy| E404[404]
+  L --> B{role = buyer và đang không phải buyer?}
+  B -->|có| OWN{còn product hoặc discount?}
+  OWN -->|có| E409[409 seller-owned data still exists]
+  OWN -->|không| UNSET[Xoá sellerProfile]
+  B -->|role = seller, chưa có sellerProfile| NEED[Bắt buộc sellerProfile.storeName → lưu]
+  UNSET --> SAVE[Cập nhật role → 200 account]
+  NEED --> SAVE
+  B -->|trường hợp khác| SAVE
+```
+
+## Khoá/mở khoá — `PATCH /accounts/:id/status` (admin)
+
+- Chỉ nhận `active` hoặc `inactive`.
+- Admin không thể tự khoá account của mình (403).
+- Account bị khoá sẽ bị chặn ngay ở request tiếp theo, vì middleware đọc lại trạng thái từ DB.
+
+## Duyệt seller — `PATCH /accounts/:id/approve-seller` (admin)
+
+Cập nhật có điều kiện `role = seller AND status = pending → active`. Nếu không khớp:
+
+| Tình huống | Lỗi |
+| --- | --- |
+| Không có account | 404 Account not found |
+| Account không phải seller | 409 Only seller registrations can be approved |
+| Seller đã active/inactive | 409 Seller registration is not pending approval |
+
+## Danh sách — `GET /accounts` (admin)
+
+Lọc theo `role` và `status`, phân trang bằng `page`/`limit`, sắp xếp mới nhất trước.
+Response có `pagination.total`.
+</script>
+<script type="text/markdown" data-id="flow-product" data-title="3. Sản phẩm & tồn kho" data-group="flow">
+# 3. Sản phẩm & tồn kho
+
+**Code:** `routes/product.route.ts` → `controllers/product.controller.ts` → `services/product.service.ts`
+· `validators/product.validator.ts` · `repositories/product.repo.ts`, `repositories/inventory.repo.ts`
+
+## Vòng đời sản phẩm
+
+```mermaid
+stateDiagram-v2
+  [*] --> Draft: POST /products<br/>isDraft=true, isPublished=false
+  Draft --> Published: PATCH /products/publication<br/>isPublished=true
+  Published --> Draft: PATCH /products/publication<br/>isPublished=false
+  note right of Draft: Chỉ seller sở hữu thấy<br/>(GET /products/seller)
+  note right of Published: Hiện ở GET /products,<br/>có thể thêm vào giỏ / đặt hàng
+```
+
+## Tạo sản phẩm — `POST /products` (seller+)
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as Seller
+  participant API
+  participant DB as MongoDB
+  S->>API: product_name, thumbnail, price, quantity, type, attributes…
+  API->>API: validate theo product_type
+  Note right of API: Clothing → brand, size, material<br/>Electronics → manufacturer, model, color<br/>(các attribute khác bị bỏ qua)
+  API->>DB: tạo Product (slug từ tên, draft)
+  API->>DB: tạo Inventory { stock = product_quantity, location = default }
+  alt tạo inventory lỗi
+    API->>DB: xoá Product vừa tạo (bù trừ)
+    API-->>S: lỗi
+  end
+  API-->>S: 201 product
+```
+
+**Quy tắc validate**
+
+| Field | Ràng buộc |
+| --- | --- |
+| `product_name` | bắt buộc, ≤ 200 ký tự |
+| `product_thumbnail` | bắt buộc, ≤ 2000 ký tự |
+| `product_price` | số ≥ 0 |
+| `product_quantity` | số nguyên ≥ 0 |
+| `product_type` | `Electronics` \| `Clothing` |
+| `product_attributes.*` | các field bắt buộc theo type, mỗi field ≤ 150 ký tự |
+| `product_variations` | mảng (không bắt buộc) |
+
+## Sửa sản phẩm — `PATCH /products/:id` (seller+)
+
+- Chỉ sửa được sản phẩm **của chính mình**. Sản phẩm của người khác trả 404, không phải 403,
+  để không lộ việc sản phẩm đó tồn tại.
+- Không được đổi `product_type`. Đổi `product_name` thì `product_slug` được tạo lại.
+- Nếu gửi `product_quantity`, `inven_stock` sẽ bị **ghi đè** bằng giá trị mới (upsert).
+
+> ⚠️ `inven_stock` là số hàng **còn có thể bán**, đã trừ phần đang được giữ cho đơn chờ thanh
+> toán. Ghi đè stock trong khi đang có reservation active có thể làm lệch kho. Cần đối soát
+> trước khi dùng tính năng này cho nghiệp vụ nhập hàng.
+
+## Publish / unpublish — `PATCH /products/publication` (seller+)
+
+Body: `{ "productIds": [...], "isPublished": true }`. Trường cũ `product_id` vẫn được chấp
+nhận như alias của `productIds`. ID trùng nhau được loại bỏ. Lệnh chỉ cập nhật sản phẩm
+thuộc seller hiện tại. Nếu không khớp sản phẩm nào → 404. Response `{ matchedCount, modifiedCount }`.
+
+## Tìm kiếm & xem
+
+| Endpoint | Quyền | Hành vi |
+| --- | --- | --- |
+| `GET /products?search=&sort=newest\|oldest&page&limit` | công khai | Chỉ sản phẩm published. Có `search` thì dùng MongoDB text index (tên + mô tả) và sắp xếp theo độ liên quan; không có thì sắp xếp theo `createdAt`. |
+| `GET /products/seller?status=draft\|published\|all` | seller+ | Sản phẩm của chính seller. |
+| `GET /products/:id` | công khai | Chỉ sản phẩm published, kèm seller (role, tên, storeName). |
+
+Phân trang: `limit` mặc định 20, tối đa 100; `page` bắt đầu từ 1.
+</script>
+<script type="text/markdown" data-id="flow-discount" data-title="4. Mã giảm giá" data-group="flow">
+# 4. Mã giảm giá
+
+**Code:** `routes/discount.route.ts` → `controllers/discount.controller.ts` → `services/discount.service.ts`
+· `validators/discount.validator.ts` · `repositories/discount.repo.ts`
+
+Mỗi mã thuộc về **một seller** và chỉ áp dụng cho sản phẩm của seller đó. `discount_code` là
+duy nhất theo từng seller và được tự động chuyển sang chữ in hoa.
+
+## Tạo mã — `POST /discounts` (seller+)
+
+```mermaid
+flowchart TD
+  A[payload] --> P[parseDiscountInput<br/>bắt buộc mọi field trừ discount_productIds<br/>trim, UPPERCASE code, dedupe productIds]
+  P --> R[validateDiscountRules]
+  R --> R1{start/end hợp lệ?<br/>start ≥ now? end > start?}
+  R1 -->|không| E400[400]
+  R1 --> R2{percentage ≤ 100?<br/>specific_products có ≥1 sản phẩm?}
+  R2 -->|không| E400
+  R2 --> O{mọi productIds thuộc seller?}
+  O -->|không| E400b[400 do not belong to this seller]
+  O --> D{code đã tồn tại cho seller?}
+  D -->|có| E409[409 Discount code already exists]
+  D -->|không| OK[201 discount]
+```
+
+## Sửa mã — `PATCH /discounts/:id` (seller+)
+
+Gửi một phần field. Quy tắc chéo giữa các field (ngày, % ≤ 100, phạm vi sản phẩm) được kiểm
+tra trên **giá trị sau khi gộp** giá trị mới với giá trị đang lưu. Ngày bắt đầu chỉ bị bắt
+buộc ở tương lai khi được gửi mới. Mã đã xoá mềm không sửa được (404).
+
+## Huỷ / xoá
+
+| Endpoint | Tác động |
+| --- | --- |
+| `PATCH /discounts/:id/cancel` | `discount_status = false` (mã còn đó nhưng không dùng được) |
+| `DELETE /discounts/:id` | Xoá mềm: `is_deleted = true` |
+
+Cả hai chỉ tác động lên mã của chính seller và chưa bị xoá. Không tìm thấy → 404.
+
+## Danh sách — `GET /discounts` (công khai)
+
+Trả về các mã đang hiệu lực: `is_deleted=false`, `discount_status=true`, và
+`start ≤ now ≤ end`. Có thể lọc theo `sellerId`, `productId`.
+
+## Tính tiền giảm — `POST /discounts/:id/calculate` (buyer+)
+
+Body: `{ "sellerId": "...", "products": [{ "productId": "...", "quantity": 2 }] }`.
+Hàm này cũng được checkout dùng cho từng shop.
+
+```mermaid
+flowchart TD
+  I[products] --> V{mỗi item: productId hợp lệ,<br/>quantity nguyên > 0, không trùng}
+  V -->|không| E400[400]
+  V --> F[Tìm mã của seller, chưa xoá] -->|không thấy| E404[404]
+  F --> U{Mã dùng được?}
+  U -->|status=false| X1[400 inactive]
+  U -->|chưa tới start| X2[400 has not started yet]
+  U -->|quá end| X3[400 has expired]
+  U -->|used_count ≥ max_uses| X4[400 maximum usage limit]
+  U -->|buyer đã dùng| X5[400 already used]
+  U --> PR[Lấy giá hiện tại của sản phẩm, chỉ của seller]
+  PR -->|thiếu sản phẩm| X6[400 do not exist for this seller]
+  PR --> T[totalPrice = Σ giá × số lượng]
+  T --> MIN{totalPrice < minimum_purchase?}
+  MIN -->|có| X7[400 Minimum purchase amount is …]
+  MIN --> EL[eligible = tất cả, hoặc chỉ discount_productIds]
+  EL -->|rỗng| X8[400 does not apply to any selected product]
+  EL --> CALC[Tính discountAmount]
+```
+
+**Công thức**
+
+```text
+eligibleTotalPrice = Σ (giá × số lượng) của sản phẩm được áp dụng
+percentage   → raw = discount_value / 100 × eligibleTotalPrice
+fixed_amount → raw = discount_value
+discountAmount = min(raw, eligibleTotalPrice)
+finalPrice     = max(totalPrice − discountAmount, 0)
+```
+
+Ví dụ: sản phẩm A giá 100 × 2, sản phẩm B giá 50 × 1 (`totalPrice = 250`).
+
+- Giảm 10% cho tất cả → giảm 25.
+- Giảm 10% chỉ cho B → `eligibleTotalPrice = 50`, giảm 5.
+- Giảm cố định 1000 → giảm tối đa bằng 250.
+
+> Việc tính tiền giảm **không** tăng `discount_used_count` và không ghi buyer vào
+> `discount_used_by_accounts`. Hai giá trị này cần được ghi nhận lúc thanh toán thành công
+> (chưa làm).
+</script>
+<script type="text/markdown" data-id="flow-cart" data-title="5. Giỏ hàng" data-group="flow">
+# 5. Giỏ hàng
+
+**Code:** `routes/cart.route.ts` → `controllers/cart.controller.ts` → `services/cart.service.ts`
+· `repositories/cart.repo.ts`
+
+Mọi endpoint yêu cầu đăng nhập (buyer trở lên). Chủ giỏ hàng luôn là `req.auth.accountId`;
+không có cách nào truy cập giỏ của người khác, kể cả admin.
+
+## Dữ liệu
+
+Collection `carts`: mỗi account có **tối đa 1 giỏ** (unique `cart_account`). Giỏ chỉ lưu
+`{ product, quantity }`; giá được đọc lại từ sản phẩm mỗi lần xem giỏ. Giới hạn: 100 sản phẩm
+khác nhau, mỗi sản phẩm chỉ xuất hiện một lần. Schema bật `optimisticConcurrency`.
+
+## Thêm sản phẩm — `POST /cart/items`
+
+```mermaid
+flowchart TD
+  A[productId, quantity] --> Q{quantity nguyên > 0?}
+  Q -->|không| E400[400]
+  Q --> RD[Đọc giỏ của account]
+  RD --> N{Sản phẩm đã có trong giỏ?}
+  N -->|có| SUM[quantity mới = cũ + thêm]
+  N -->|chưa, giỏ đã 100 dòng| E409a[409 Cart cannot contain more than 100]
+  N -->|chưa| NEW[quantity mới = thêm]
+  SUM --> AV
+  NEW --> AV[Kiểm tra sản phẩm]
+  AV --> AV1{tồn tại?} -->|không| E404[404 Product not found]
+  AV1 --> AV2{published?} -->|không| E409b[409 not available for purchase]
+  AV2 --> AV3{seller active?} -->|không| E409c[409 seller is not active]
+  AV3 --> AV4{có inventory và<br/>quantity mới ≤ stock?} -->|không| E409d[409 exceeds available stock]
+  AV4 --> SV{Giỏ đã tồn tại?}
+  SV -->|không| CR[Tạo giỏ mới]
+  SV -->|có| SAVE[cart.save]
+  CR --> OK[200 giỏ hàng]
+  SAVE --> OK
+```
+
+Thao tác trên giỏ **không giữ hàng và không trừ kho**. Tồn kho chỉ được kiểm tra tại thời
+điểm thao tác; checkout và đặt hàng sẽ kiểm tra lại.
+
+## Các thao tác khác
+
+| Endpoint | Hành vi |
+| --- | --- |
+| `PATCH /cart/items/:productId` `{ quantity }` | Đặt số lượng tuyệt đối. `quantity = 0` sẽ xoá dòng đó. Kiểm tra tồn kho như khi thêm. Sản phẩm chưa có trong giỏ → 404. |
+| `DELETE /cart/items/:productId` | Xoá một dòng. Sản phẩm không có trong giỏ → 404. |
+| `DELETE /cart` | Xoá toàn bộ sản phẩm (giỏ vẫn còn). |
+| `GET /cart` | Trả `cart_items` kèm `product_price` hiện tại (`null` nếu sản phẩm đã bị xoá), `cart_count_products`, `cart_total_quantity`. Chưa có giỏ → 404. |
+
+## Ghi đồng thời
+
+```mermaid
+sequenceDiagram
+  participant R1 as Request 1
+  participant R2 as Request 2
+  participant DB as carts (version __v)
+  R1->>DB: đọc giỏ (v=3)
+  R2->>DB: đọc giỏ (v=3)
+  R1->>DB: save (v=3 → 4) ✔
+  R2->>DB: save (v=3) ✖ VersionError
+  R2->>DB: đọc lại (v=4), validate lại, save ✔
+  Note over R2: Thử tối đa 3 lần, sau đó trả<br/>409 Cart was modified concurrently
+```
+
+Lỗi trùng key (hai request cùng tạo giỏ đầu tiên) cũng được thử lại theo cách này.
+</script>
+<script type="text/markdown" data-id="flow-checkout" data-title="6. Checkout review" data-group="flow">
+# 6. Checkout review
+
+**Code:** `routes/checkout.route.ts` → `controllers/checkout.controller.ts` → `services/checkout.service.ts`
+· `validators/checkout.validator.ts`
+
+`POST /checkout/review` (buyer+) **chỉ xem trước** giá, mã giảm và phí ship. Endpoint này
+không giữ hàng, không tạo đơn, không trừ lượt dùng mã. `OrderService` dùng lại đúng hàm này
+bên trong transaction lúc tạo đơn.
+
+## Payload
+
+```json
+{
+  "cartId": "<cart id>",
+  "shop_ids": [
+    {
+      "shop_id": "<seller account id>",
+      "discount_id": "<discount id, không bắt buộc>",
+      "items": [{ "product_id": "<product id>", "quantity": 2 }]
+    }
+  ]
+}
+```
+
+- Có thể chỉ chọn một phần sản phẩm trong giỏ; `quantity` là số lượng muốn mua.
+- `shop_id` không được trùng. Mỗi `product_id` chỉ xuất hiện một lần trên toàn payload.
+- `accountId` trong body bị **bỏ qua**; hệ thống luôn dùng tài khoản đang đăng nhập.
+
+## Flow
+
+```mermaid
+flowchart TD
+  P[payload] --> V[validateReviewCheckoutPayload<br/>trước khi chạm DB]
+  V -->|sai| E400[400]
+  V --> C[Tìm giỏ: _id = cartId AND cart_account = mình]
+  C -->|không thấy| E400c[400 Cart not found]
+  C --> L[loadCatalog: 1 query lấy sản phẩm + 1 query lấy tồn kho<br/>theo cặp product, seller]
+  L --> I[Với mỗi item]
+  I --> I1{có trong giỏ?} -->|không| X1[400 not found in cart]
+  I1 --> I2{sản phẩm thuộc shop_id?} -->|không| X2[400 not found for this shop]
+  I2 --> I3{có inventory?} -->|không| X3[409 Inventory is not available]
+  I3 --> I4{quantity ≤ stock?} -->|không| X4[409 Insufficient stock]
+  I4 --> PR[price = giá trong DB]
+  PR --> D[Với mỗi shop có discount_id:<br/>DiscountService.getDiscountAmount]
+  D --> DC{totalPrice của discount<br/>= tổng giá shop?}
+  DC -->|lệch| X5[409 Product prices changed]
+  DC --> SUM[Tổng hợp]
+```
+
+Toàn bộ item được kiểm tra xong **trước** khi tính bất kỳ mã giảm nào, nên payload hỏng
+không tốn query vào bảng discount.
+
+## Cách tính
+
+```text
+Theo từng shop:
+  total_price    = Σ price × quantity
+  total_discount = discountAmount (0 nếu không có mã)
+  total_checkout = total_price − total_discount
+
+Toàn đơn (checkout_order):
+  total_price    = Σ total_price các shop
+  total_discount = Σ total_discount các shop
+  fee_shipping   = 5 × số dòng sản phẩm   ← tạm thời, chưa có module vận chuyển
+  total_checkout = total_price + fee_shipping − total_discount
+```
+
+## Response
+
+```json
+{
+  "checkout_summary": [
+    {
+      "shop_id": "…",
+      "discount_id": "…",
+      "items": [{ "product_id": "…", "price": 20, "quantity": 2 }],
+      "total_price": 40,
+      "total_discount": 10,
+      "total_checkout": 30
+    }
+  ],
+  "checkout_order": { "total_price": 40, "fee_shipping": 5, "total_discount": 10, "total_checkout": 35 }
+}
+```
+</script>
+<script type="text/markdown" data-id="flow-order" data-title="7. Đơn hàng & giữ hàng" data-group="flow">
+# 7. Đơn hàng & giữ hàng (reservation)
+
+**Code:** `routes/order.route.ts` → `controllers/order.controller.ts` → `services/order.service.ts`
+· `services/redis.service.ts` · `repositories/inventory.repo.ts`, `repositories/order.repo.ts`
+· `validators/order.validator.ts` · `jobs/reservationCleanup.job.ts`
+
+Mọi endpoint yêu cầu buyer trở lên. Chủ đơn luôn là `req.auth.accountId`.
+
+## Trạng thái đơn
+
+```mermaid
+stateDiagram-v2
+  [*] --> pending_payment: POST /orders<br/>giữ hàng 15 phút
+  pending_payment --> cancelled: huỷ đơn (cancel)<br/>hoàn kho
+  pending_payment --> expired: quá expiresAt<br/>job cleanup hoàn kho
+  pending_payment --> expired: huỷ khi đã quá hạn
+  pending_payment --> paid: thanh toán (chưa làm)
+```
+
+## Tạo đơn — `POST /orders`
+
+Payload giống checkout review, thêm `requestId` (ID 24 ký tự hex do client sinh **một lần
+cho mỗi lần thử checkout**):
+
+```json
+{
+  "requestId": "507f1f77bcf86cd799439010",
+  "cartId": "507f1f77bcf86cd799439011",
+  "shop_ids": [
+    {
+      "shop_id": "507f1f77bcf86cd799439012",
+      "discount_id": "507f1f77bcf86cd799439015",
+      "items": [{ "product_id": "507f1f77bcf86cd799439013", "quantity": 2 }]
+    }
+  ]
+}
+```
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant C as Client
+  participant S as OrderService
+  participant R as Redis
+  participant DB as MongoDB (transaction)
+
+  C->>S: requestId + checkout
+  S->>S: validate, tính requestHash (SHA-256, không phụ thuộc thứ tự shop/item)
+  S->>DB: đã có đơn (accountId, requestId)?
+  alt đã có
+    S-->>C: trả lại đơn cũ (hoặc 409 nếu hash khác)
+  end
+  S->>R: SET lock:productId NX PX 3000 (theo thứ tự productId tăng dần)
+  alt không lấy được lock sau 5 lần × 100ms
+    S-->>C: 409 Product is being reserved, retry với cùng requestId
+  end
+  S->>DB: startTransaction (snapshot, majority)
+  S->>DB: kiểm tra lại đơn trùng requestId
+  S->>DB: mọi sản phẩm published? mọi seller active?
+  S->>DB: CheckoutService.reviewCheckout (giá, mã giảm, ship)
+  loop mỗi sản phẩm
+    S->>DB: updateOne có điều kiện: stock ≥ qty AND reservationId chưa tồn tại<br/>→ stock −= qty, push reservation(active, expiresAt)
+  end
+  S->>DB: insert Order (pending_payment, snapshot giá)
+  S->>DB: commit
+  S->>R: nhả lock (Lua: chỉ xoá nếu token khớp), theo thứ tự ngược lại
+  S-->>C: 201 order (không có requestHash)
+```
+
+**Đảm bảo**
+
+- **All-or-nothing:** chỉ cần một sản phẩm hết hàng, hoặc lưu đơn lỗi, là transaction bị
+  huỷ và mọi phần đã giữ được hoàn lại.
+- **Idempotent:** gửi lại cùng `requestId` và cùng nội dung sẽ nhận lại đúng đơn cũ, kể cả
+  khi tồn kho đã thay đổi. Cùng `requestId` nhưng nội dung khác → 409. Unique index
+  `(accountId, requestId)` chặn trường hợp hai request song song cùng tạo đơn; bên thua sẽ
+  đọc lại đơn của bên thắng.
+- **Không bán vượt kho:** Redis lock chỉ để giảm tranh chấp. Lớp bảo vệ thật là điều kiện
+  `inven_stock ≥ qty` nằm ngay trong câu update MongoDB, nên vẫn an toàn khi lock hết hạn.
+- **Lock luôn được nhả** trong `finally`. Lỗi khi nhả lock chỉ được ghi log, không làm hỏng
+  kết quả.
+- Giỏ hàng **giữ nguyên** trong khi đơn đang chờ thanh toán.
+
+## Giữ hàng cho một sản phẩm
+
+`reserveInventoryStock` (gọi bên trong transaction tạo đơn, sau khi đã lấy Redis lock của
+sản phẩm). Mọi kiểm tra quan trọng nằm trong **một câu `updateOne` atomic**, nên kết quả
+vẫn đúng khi nhiều request chạy song song.
+
+```mermaid
+flowchart TD
+  IN[productId, sellerId, cartId,<br/>reservationId, quantity] --> V{ID hợp lệ và<br/>quantity nguyên dương?}
+  V -->|không| E400[400 BadRequest]
+  V --> U["updateOne atomic trên inventory<br/>WHERE productId + sellerId<br/>AND inven_stock ≥ quantity<br/>AND reservationId chưa có<br/>SET stock −= quantity<br/>PUSH reservation status=active, expiresAt=now+15 phút"]
+  U --> M{modifiedCount = 1?}
+  M -->|có| OK[Trả reservation mới<br/>kho đã bị trừ]
+  M -->|không| F[Đọc reservation theo reservationId]
+  F --> X{Tìm thấy?}
+  X -->|không| E409a[409 Inventory không tồn tại<br/>hoặc không đủ hàng]
+  X -->|có| D{Cùng cartId và quantity?}
+  D -->|không| E409b[409 Reservation ID was already<br/>used with different data]
+  D -->|có| S{Trạng thái hiện tại}
+  S -->|active, chưa hết hạn| R1[Retry hợp lệ<br/>trả reservation cũ, không trừ kho thêm]
+  S -->|confirmed| R1
+  S -->|cancelled / expired<br/>hoặc active đã quá hạn| E409c[409 Reservation is cancelled<br/>or expired, use a new reservationId]
+```
+
+## Kết thúc reservation (confirm / cancel / expire)
+
+`finishReservation` dùng chung cho cả ba thao tác. Chỉ đúng một request thắng ở bước chuyển
+trạng thái; request thua đọc lại để trả kết quả idempotent.
+
+```mermaid
+flowchart TD
+  IN[identity + trạng thái đích] --> F[Đọc reservation]
+  F --> NF{Có và đúng cartId?}
+  NF -->|không| E1[409 Reservation not found]
+  NF --> DONE{Đã ở trạng thái đích?<br/>hoặc cancel khi đã expired}
+  DONE -->|có| RET[Trả reservation hiện tại<br/>không đổi kho]
+  DONE -->|không| ACT{Đang active?}
+  ACT -->|không| E2[409 Reservation is already completed]
+  ACT --> G["updateOne atomic<br/>WHERE reservation active, cùng quantity<br/>+ confirm: expiresAt > now<br/>+ expire: expiresAt ≤ now<br/>SET status, completedAt"]
+  G --> K{Loại thao tác}
+  K -->|confirm| K1[Kho giữ nguyên]
+  K -->|cancel / expire| K2[stock += quantity<br/>trong cùng câu update]
+  K1 --> W{modifiedCount = 1?}
+  K2 --> W
+  W -->|có| OK[Trả reservation đã cập nhật]
+  W -->|không| RE[Đọc lại]
+  RE --> RE2{Đã đạt trạng thái đích<br/>do request khác?}
+  RE2 -->|có| RET
+  RE2 -->|không| E3[409 Reservation expired<br/>or was completed concurrently]
+```
+
+## Vòng đời reservation
+
+Mỗi reservation nằm trong `inventory.inven_reservations` và được định danh bằng
+`reservationId` (dùng chung cho mọi sản phẩm của một đơn).
+
+```mermaid
+stateDiagram-v2
+  [*] --> active: reserve<br/>stock −= qty
+  active --> confirmed: confirm (trước expiresAt)<br/>stock giữ nguyên
+  active --> cancelled: cancel<br/>stock += qty
+  active --> expired: job (sau expiresAt)<br/>stock += qty
+  confirmed --> [*]
+  cancelled --> [*]
+  expired --> [*]
+```
+
+| Gọi lại khi… | Kết quả |
+| --- | --- |
+| reserve trùng ID, cùng dữ liệu, còn active/confirmed | Trả reservation cũ, không trừ kho thêm, không gia hạn |
+| reserve trùng ID, khác cart hoặc quantity | 409 Reservation ID was already used with different data |
+| reserve trùng ID đã cancelled/expired | 409 use a new reservationId |
+| cancel/confirm lặp lại | Trả trạng thái hiện tại, không cộng/trừ kho lần nữa |
+| cancel một reservation đã expired | Coi như đã xong |
+| confirm khi đã quá hạn | 409 (kể cả khi job chưa kịp chạy) |
+| cancel một reservation đã confirmed | 409 Reservation is already completed |
+
+Mọi chuyển trạng thái đều là `updateOne` có điều kiện `status = active` (và điều kiện
+`expiresAt` phù hợp), nên nhiều worker hoặc request chạy song song cũng chỉ một bên thắng.
+Các reservation đã kết thúc được **giữ lại** để đảm bảo idempotent.
+
+## Hết hạn tự động
+
+```mermaid
+flowchart LR
+  T[Khởi động server<br/>+ mỗi 30 giây] --> F[Tìm ≤ 100 inventory có reservation<br/>active và expiresAt ≤ now]
+  F --> E[finishReservation expired<br/>hoàn kho từng reservation]
+  E --> O[Đơn pending_payment quá hạn → expired]
+```
+
+`GET /orders/:id` trả `status: "expired"` ngay khi đơn quá hạn, kể cả khi job chưa kịp cập
+nhật DB.
+
+## Huỷ đơn — `POST /orders/:orderId/cancel`
+
+Chạy trong transaction:
+
+1. Tìm đơn của chính mình (của người khác → 404).
+2. Đơn đã `cancelled` thì trả lại ngay.
+3. Xác định trạng thái cuối: `expired` nếu đã quá hạn, ngược lại là `cancelled`.
+4. Huỷ reservation của từng sản phẩm. Chỉ cần một reservation đã `confirmed` là toàn bộ bị
+   rollback (409), không hoàn kho một phần.
+5. Lưu `status` và `cancelledAt`.
+
+## Giới hạn hiện tại
+
+- Chưa có thanh toán. Đơn chưa bao giờ chuyển sang `paid`, và chưa trừ lượt dùng mã giảm giá.
+  Luồng thanh toán sau này phải xác nhận mọi reservation **trong một transaction**; không
+  được gọi `confirmReservationInventory` riêng lẻ cho từng sản phẩm.
+- Phí ship tạm tính 5 / dòng sản phẩm. Chưa có địa chỉ, thuế, chính sách tiền tệ/làm tròn.
+- Bắt buộc MongoDB replica set. Test hiện dùng stub, chưa có integration test với
+  replica set và Redis thật.
+</script>
+<script>
+const ID = {
+  account: "6650a1f0c2a4b81234567801",
+  seller: "6650a1f0c2a4b81234567802",
+  session: "6650a1f0c2a4b81234567803",
+  product: "6650a1f0c2a4b81234567804",
+  product2: "6650a1f0c2a4b81234567805",
+  cart: "6650a1f0c2a4b81234567806",
+  discount: "6650a1f0c2a4b81234567807",
+  order: "6650a1f0c2a4b81234567808",
+  request: "6650a1f0c2a4b81234567809",
+  profile: "6650a1f0c2a4b8123456780a",
+};
+
+const AUTH_ERRORS = [
+  [401, "Missing Bearer access token / Invalid access token / Access token expired / Session is invalid or revoked"],
+];
+const roleError = (role) => [403, `${role} role is required`];
+const PAGINATION = [
+  ["page", "number", "Trang, bắt đầu từ 1 (mặc định 1)"],
+  ["limit", "number", "Số bản ghi mỗi trang, mặc định 20, tối đa 100"],
+];
+
+const profile = { _id: ID.profile, name: "Nguyễn Văn A", avatarUrl: "", phone: "" };
+const account = { _id: ID.account, email: "buyer@example.com", role: "buyer", status: "active", verified: false, profile };
+const product = {
+  _id: ID.product,
+  product_name: "Basic Tee",
+  product_thumbnail: "https://cdn.example.com/tee.png",
+  product_description: "Áo thun cotton",
+  product_slug: "basic-tee",
+  product_price: 20,
+  product_quantity: 10,
+  product_type: "Clothing",
+  product_seller: ID.seller,
+  product_attributes: { brand: "Acme", size: "M", material: "Cotton" },
+  product_ratingAverage: 1,
+  product_variations: [],
+  createdAt: "2026-10-07T00:00:00.000Z",
+  updatedAt: "2026-10-07T00:00:00.000Z",
+};
+const discountBody = {
+  discount_name: "Summer sale",
+  discount_description: "Giảm 10% toàn shop",
+  discount_type: "percentage",
+  discount_value: 10,
+  discount_code: "SUMMER10",
+  discount_start_date: "2026-11-01T00:00:00.000Z",
+  discount_end_date: "2026-11-30T23:59:59.000Z",
+  discount_max_uses: 100,
+  discount_minimum_purchase: 0,
+  discount_applies_to: "all",
+  discount_productIds: [],
+};
+const discount = {
+  _id: ID.discount,
+  ...discountBody,
+  discount_used_count: 0,
+  discount_used_by_accounts: [],
+  discount_sellerId: ID.seller,
+  discount_status: true,
+  is_deleted: false,
+};
+const checkoutBody = {
+  cartId: ID.cart,
+  shop_ids: [{ shop_id: ID.seller, discount_id: ID.discount, items: [{ product_id: ID.product, quantity: 2 }] }],
+};
+const checkoutResult = {
+  checkout_summary: [
+    {
+      shop_id: ID.seller,
+      discount_id: ID.discount,
+      items: [{ product_id: ID.product, price: 20, quantity: 2 }],
+      total_price: 40,
+      total_discount: 4,
+      total_checkout: 36,
+    },
+  ],
+  checkout_order: { total_price: 40, fee_shipping: 5, total_discount: 4, total_checkout: 41 },
+};
+const order = {
+  _id: ID.order,
+  accountId: ID.account,
+  cartId: ID.cart,
+  requestId: ID.request,
+  reservationId: "6650a1f0c2a4b8123456780b",
+  status: "pending_payment",
+  expiresAt: "2026-10-07T00:15:00.000Z",
+  ...checkoutResult,
+  createdAt: "2026-10-07T00:00:00.000Z",
+  updatedAt: "2026-10-07T00:00:00.000Z",
+};
+const cartDoc = {
+  _id: ID.cart,
+  cart_account: ID.account,
+  cart_items: [{ product: ID.product, quantity: 2 }],
+  cart_count_products: 1,
+  cart_total_quantity: 2,
+  createdAt: "2026-10-07T00:00:00.000Z",
+  updatedAt: "2026-10-07T00:00:00.000Z",
+};
+
+window.API_GROUPS = [
+  {
+    id: "system",
+    name: "System",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/health",
+        auth: "public",
+        summary: "Health check",
+        message: "Service is healthy",
+        response: null,
+      },
+    ],
+  },
+  {
+    id: "auth",
+    name: "Auth",
+    flow: "flow-auth",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/auth/signup",
+        auth: "public",
+        status: 201,
+        summary: "Đăng ký tài khoản buyer",
+        description:
+          "Tạo Account (buyer, active) + UserProfile + session. Trả access token trong body và set cookie <code>refreshToken</code> (httpOnly, path <code>/v1/api/auth</code>). Rate limit: 10 lần/giờ/IP.",
+        body: { name: "Nguyễn Văn A", email: "buyer@example.com", password: "correct horse battery" },
+        fields: [
+          ["name", "string", "Bắt buộc, ≤ 150 ký tự"],
+          ["email", "string", "Bắt buộc, email hợp lệ ≤ 254 ký tự, tự lowercase"],
+          ["password", "string", "Bắt buộc, ≥ 8 ký tự và ≤ 72 byte UTF-8"],
+        ],
+        message: "Account created successfully",
+        response: { account, accessToken: "eyJhbGciOiJIUzI1NiIs…" },
+        errors: [
+          [400, "Name is required / Email is invalid / Password must contain at least 8 characters"],
+          [409, "Email is already taken"],
+          [429, "Too many signup attempts; please try again later"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/auth/register/seller",
+        auth: "public",
+        status: 201,
+        summary: "Đăng ký seller (chờ admin duyệt)",
+        description:
+          "Tạo Account (seller, <b>pending</b>) + UserProfile có sellerProfile. <b>Không cấp token</b>; chỉ login được sau khi admin duyệt.",
+        body: {
+          name: "Shop Owner",
+          email: "seller@example.com",
+          password: "correct horse battery",
+          storeName: "Acme Store",
+          storeDescription: "Thời trang cơ bản",
+        },
+        fields: [
+          ["storeName", "string", "Bắt buộc, ≤ 150 ký tự"],
+          ["storeDescription", "string", "Không bắt buộc, ≤ 2000 ký tự"],
+          ["name, email, password", "", "Như /auth/signup"],
+        ],
+        message: "Seller registration submitted and is pending admin approval",
+        response: {
+          account: {
+            ...account,
+            email: "seller@example.com",
+            role: "seller",
+            status: "pending",
+            profile: { ...profile, name: "Shop Owner", sellerProfile: { storeName: "Acme Store", description: "Thời trang cơ bản" } },
+          },
+        },
+        errors: [
+          [400, "Store name is required for seller accounts"],
+          [409, "Email is already taken"],
+          [429, "Too many signup attempts; please try again later"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/auth/login",
+        auth: "public",
+        summary: "Đăng nhập",
+        description: "Tạo session mới (hỗ trợ nhiều thiết bị). Rate limit: 20 lần / 15 phút / IP.",
+        body: { email: "buyer@example.com", password: "correct horse battery" },
+        message: "Logged in successfully",
+        response: { account, accessToken: "eyJhbGciOiJIUzI1NiIs…" },
+        errors: [
+          [400, "Email is required / Email is invalid / Password is required"],
+          [401, "Invalid email or password"],
+          [403, "Seller registration is pending admin approval / Account is inactive"],
+          [429, "Too many login attempts; please try again later"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/auth/refresh-token",
+        auth: "refresh",
+        summary: "Đổi refresh token lấy access token mới (rotation)",
+        description:
+          "Đọc refresh token từ cookie <code>refreshToken</code>, hoặc từ body nếu client không dùng cookie. Token cũ bị vô hiệu; dùng lại token cũ sẽ <b>thu hồi cả session</b>. Lỗi 401 cũng xoá cookie. Rate limit: 60 lần / 15 phút.",
+        body: { refreshToken: "(không bắt buộc nếu đã có cookie)" },
+        message: "Token refreshed successfully",
+        response: { accessToken: "eyJhbGciOiJIUzI1NiIs…" },
+        errors: [
+          [401, "Missing refresh token / Invalid or expired refresh token / Refresh token reuse detected; session revoked / Account is unavailable"],
+          [429, "Too many token refresh attempts; please try again later"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/auth/logout",
+        auth: "buyer",
+        summary: "Đăng xuất phiên hiện tại",
+        description: "Thu hồi session của access token hiện tại và xoá cookie refresh. Các thiết bị khác vẫn giữ phiên.",
+        message: "Logged out successfully",
+        response: null,
+      },
+    ],
+  },
+  {
+    id: "accounts",
+    name: "Accounts",
+    flow: "flow-account",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/accounts/me",
+        auth: "buyer",
+        summary: "Thông tin account hiện tại",
+        message: "Account retrieved successfully",
+        response: { ...account, createdAt: "2026-10-07T00:00:00.000Z", updatedAt: "2026-10-07T00:00:00.000Z" },
+        errors: [[404, "Account not found"]],
+      },
+      {
+        method: "PATCH",
+        path: "/accounts/me/profile",
+        auth: "buyer",
+        summary: "Cập nhật hồ sơ cá nhân",
+        description: "Gửi một phần field. <code>sellerProfile</code> chỉ dành cho seller trở lên.",
+        body: { name: "Nguyễn Văn B", phone: "0901234567", sellerProfile: { description: "Mô tả mới" } },
+        fields: [
+          ["name", "string", "Không được rỗng"],
+          ["avatarUrl, phone", "string", "Không bắt buộc"],
+          ["sellerProfile.storeName", "string", "Seller+, không được rỗng"],
+          ["sellerProfile.description", "string", "Seller+"],
+        ],
+        message: "Profile updated successfully",
+        response: { ...profile, name: "Nguyễn Văn B", phone: "0901234567" },
+        errors: [
+          [400, "No supported profile fields to update / name cannot be empty"],
+          [403, "Only seller accounts can update seller profile fields"],
+          [404, "User profile not found"],
+        ],
+      },
+      {
+        method: "GET",
+        path: "/accounts",
+        auth: "admin",
+        summary: "Danh sách account",
+        query: [["role", "buyer | seller | admin", "Lọc theo role"], ["status", "pending | active | inactive", "Lọc theo trạng thái"], ...PAGINATION],
+        message: "Accounts retrieved successfully",
+        response: [account],
+        pagination: { page: 1, limit: 20, total: 1 },
+        errors: [[400, "Invalid account role / Invalid account status"]],
+      },
+      {
+        method: "PATCH",
+        path: "/accounts/:id/role",
+        auth: "admin",
+        summary: "Đổi role của account",
+        description:
+          "Nâng lên seller cần <code>sellerProfile.storeName</code> nếu chưa có. Hạ về buyer bị chặn nếu account còn sản phẩm/mã giảm giá. Admin không thể tự hạ quyền mình.",
+        body: { role: "seller", sellerProfile: { storeName: "Acme Store", description: "" } },
+        message: "Account role updated successfully",
+        response: { ...account, role: "seller" },
+        errors: [
+          [400, "Valid account ID and role are required / sellerProfile is required when promoting an account to seller"],
+          [403, "An admin cannot remove their own admin role"],
+          [404, "Account or profile not found"],
+          [409, "Cannot change this account to buyer while seller-owned data still exists"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/accounts/:id/status",
+        auth: "admin",
+        summary: "Khoá / mở khoá account",
+        body: { status: "inactive" },
+        fields: [["status", "active | inactive", "Bắt buộc"]],
+        message: "Account status updated successfully",
+        response: { ...account, status: "inactive" },
+        errors: [
+          [400, "Valid account ID and status are required"],
+          [403, "An admin cannot deactivate their own account"],
+          [404, "Account not found"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/accounts/:id/approve-seller",
+        auth: "admin",
+        summary: "Duyệt đăng ký seller",
+        description: "Chỉ chuyển <code>seller + pending → active</code>.",
+        message: "Seller registration approved successfully",
+        response: { ...account, role: "seller", status: "active" },
+        errors: [
+          [404, "Account not found"],
+          [409, "Only seller registrations can be approved / Seller registration is not pending approval"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "products",
+    name: "Products",
+    flow: "flow-product",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/products",
+        auth: "public",
+        summary: "Danh sách / tìm kiếm sản phẩm đã publish",
+        query: [
+          ["search", "string", "Full-text trên tên + mô tả; có search thì sắp xếp theo độ liên quan"],
+          ["sort", "newest | oldest", "Mặc định newest (bỏ qua khi có search)"],
+          ...PAGINATION,
+        ],
+        message: "Products retrieved successfully",
+        response: [
+          {
+            _id: ID.product,
+            product_name: "Basic Tee",
+            product_price: 20,
+            product_thumbnail: "https://cdn.example.com/tee.png",
+            product_slug: "basic-tee",
+            product_seller: { _id: ID.seller, role: "seller", profile: { name: "Shop Owner", sellerProfile: { storeName: "Acme Store" } } },
+          },
+        ],
+        pagination: { page: 1, limit: 20 },
+      },
+      {
+        method: "GET",
+        path: "/products/seller",
+        auth: "seller",
+        summary: "Sản phẩm của seller hiện tại",
+        query: [["status", "draft | published | all", "Mặc định all"], ...PAGINATION],
+        message: "Seller products retrieved successfully",
+        response: [product],
+        pagination: { page: 1, limit: 20 },
+        errors: [[400, "status must be draft, published, or all"]],
+      },
+      {
+        method: "GET",
+        path: "/products/:id",
+        auth: "public",
+        summary: "Chi tiết sản phẩm đã publish",
+        message: "Product details retrieved successfully",
+        response: {
+          ...product,
+          product_seller: { _id: ID.seller, role: "seller", profile: { name: "Shop Owner", sellerProfile: { storeName: "Acme Store" } } },
+        },
+        errors: [
+          [400, "Invalid product ID"],
+          [404, "Product not found"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/products",
+        auth: "seller",
+        status: 201,
+        summary: "Tạo sản phẩm (draft) + inventory",
+        description:
+          "Sản phẩm mới ở trạng thái draft. Inventory được tạo với <code>inven_stock = product_quantity</code>. Attribute bắt buộc theo type: <b>Clothing</b> → brand, size, material; <b>Electronics</b> → manufacturer, model, color.",
+        body: {
+          product_name: "Basic Tee",
+          product_thumbnail: "https://cdn.example.com/tee.png",
+          product_description: "Áo thun cotton",
+          product_price: 20,
+          product_quantity: 10,
+          product_type: "Clothing",
+          product_attributes: { brand: "Acme", size: "M", material: "Cotton" },
+          product_variations: [],
+        },
+        fields: [
+          ["product_name", "string", "Bắt buộc, ≤ 200"],
+          ["product_thumbnail", "string", "Bắt buộc, ≤ 2000"],
+          ["product_price", "number", "≥ 0"],
+          ["product_quantity", "integer", "≥ 0"],
+          ["product_type", "Electronics | Clothing", "Bắt buộc"],
+          ["product_attributes", "object", "Field bắt buộc theo type, mỗi field ≤ 150"],
+        ],
+        message: "Product created successfully",
+        response: product,
+        errors: [[400, "product_type must be one of: Electronics, Clothing / product_attributes.material is required / …"]],
+      },
+      {
+        method: "PATCH",
+        path: "/products/publication",
+        auth: "seller",
+        summary: "Publish / unpublish nhiều sản phẩm",
+        description: "Chỉ tác động lên sản phẩm của seller hiện tại. <code>product_id</code> được chấp nhận như alias của <code>productIds</code>.",
+        body: { productIds: [ID.product, ID.product2], isPublished: true },
+        message: "Products published successfully",
+        response: { matchedCount: 2, modifiedCount: 2 },
+        errors: [
+          [400, "productIds and isPublished are required / Invalid seller or product ID"],
+          [404, "No matching products found for this seller"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/products/:id",
+        auth: "seller",
+        summary: "Sửa sản phẩm của mình",
+        description:
+          "Gửi một phần field. Không được đổi <code>product_type</code>. Đổi tên sẽ tạo lại slug. Gửi <code>product_quantity</code> sẽ <b>ghi đè</b> tồn kho.",
+        body: { product_price: 25, product_quantity: 50 },
+        message: "Product updated successfully",
+        response: { ...product, product_price: 25, product_quantity: 50 },
+        errors: [
+          [400, "product_type cannot be changed / No supported product fields to update"],
+          [404, "Product not found"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "discounts",
+    name: "Discounts",
+    flow: "flow-discount",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/discounts",
+        auth: "public",
+        summary: "Danh sách mã đang hiệu lực",
+        description: "Chỉ mã chưa xoá, đang bật và nằm trong khoảng ngày hiệu lực.",
+        query: [["sellerId", "ObjectId", "Lọc theo seller"], ["productId", "ObjectId", "Lọc mã áp dụng cho sản phẩm"], ...PAGINATION],
+        message: "Discount codes retrieved successfully",
+        response: [discount],
+        pagination: { page: 1, limit: 20 },
+      },
+      {
+        method: "POST",
+        path: "/discounts/:id/calculate",
+        auth: "buyer",
+        summary: "Tính số tiền được giảm",
+        description: "Không tiêu lượt dùng mã. <code>discountAmount = min(raw, eligibleTotalPrice)</code>.",
+        body: { sellerId: ID.seller, products: [{ productId: ID.product, quantity: 2 }] },
+        message: "Discount amount calculated successfully",
+        response: { totalPrice: 40, eligibleTotalPrice: 40, discountAmount: 4, finalPrice: 36 },
+        errors: [
+          [400, "Discount code is inactive / has not started yet / has expired / has reached its maximum usage limit / User has already used this discount code / Minimum purchase amount is … / Discount does not apply to any selected product / One or more products do not exist for this seller"],
+          [404, "Discount code does not exist for this seller"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/discounts",
+        auth: "seller",
+        status: 201,
+        summary: "Tạo mã giảm giá",
+        description: "Mọi field bắt buộc trừ <code>discount_productIds</code>. Code tự chuyển in hoa, duy nhất theo seller.",
+        body: discountBody,
+        fields: [
+          ["discount_type", "percentage | fixed_amount", "percentage ≤ 100"],
+          ["discount_applies_to", "all | specific_products", "specific_products cần ≥ 1 productId của chính seller"],
+          ["discount_start_date", "ISO date", "Phải ở tương lai"],
+          ["discount_end_date", "ISO date", "Sau start"],
+          ["discount_max_uses", "integer", "> 0"],
+          ["discount_value, discount_minimum_purchase", "number", "≥ 0"],
+        ],
+        message: "Discount code created successfully",
+        response: discount,
+        errors: [
+          [400, "Missing required discount fields / Discount start date must be after the current date / Percentage discount cannot exceed 100 / One or more discount products do not belong to this seller"],
+          [409, "Discount code already exists for this seller"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/discounts/:id",
+        auth: "seller",
+        summary: "Sửa mã giảm giá",
+        description: "Gửi một phần field; quy tắc chéo được kiểm tra trên giá trị sau khi gộp.",
+        body: { discount_value: 15, discount_end_date: "2026-12-31T23:59:59.000Z" },
+        message: "Discount code updated successfully",
+        response: { ...discount, discount_value: 15 },
+        errors: [
+          [400, "No supported discount fields to update / Discount end date must be after the start date"],
+          [404, "Discount code does not exist for this seller"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/discounts/:id/cancel",
+        auth: "seller",
+        summary: "Tắt mã (discount_status = false)",
+        message: "Discount code cancelled successfully",
+        response: { ...discount, discount_status: false },
+        errors: [[404, "Discount code does not exist for this seller"]],
+      },
+      {
+        method: "DELETE",
+        path: "/discounts/:id",
+        auth: "seller",
+        summary: "Xoá mềm mã (is_deleted = true)",
+        message: "Discount code deleted successfully",
+        response: { ...discount, is_deleted: true },
+        errors: [[404, "Discount code does not exist for this seller"]],
+      },
+    ],
+  },
+  {
+    id: "cart",
+    name: "Cart",
+    flow: "flow-cart",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/cart",
+        auth: "buyer",
+        summary: "Xem giỏ hàng kèm giá hiện tại",
+        description: "<code>product_price</code> là <code>null</code> nếu sản phẩm đã bị xoá.",
+        message: "Get cart successfully",
+        response: {
+          cart_items: [{ product: ID.product, quantity: 2, product_price: 20 }],
+          cart_count_products: 1,
+          cart_total_quantity: 2,
+        },
+        errors: [[404, "Cart not found for the account"]],
+      },
+      {
+        method: "POST",
+        path: "/cart/items",
+        auth: "buyer",
+        summary: "Thêm sản phẩm (cộng dồn số lượng)",
+        description: "Tạo giỏ nếu chưa có. Kiểm tra sản phẩm published, seller active, tồn kho đủ cho số lượng <b>sau khi cộng</b>. Không giữ hàng.",
+        body: { productId: ID.product, quantity: 2 },
+        message: "Add to cart successfully",
+        response: cartDoc,
+        errors: [
+          [400, "quantity must be a positive safe integer / Invalid productId"],
+          [404, "Product not found"],
+          [409, "Product is not available for purchase / Product seller is not active / Product inventory is not available / Requested quantity exceeds available stock (n) / Cart cannot contain more than 100 distinct products / Cart was modified concurrently; please retry"],
+        ],
+      },
+      {
+        method: "PATCH",
+        path: "/cart/items/:productId",
+        auth: "buyer",
+        summary: "Đặt số lượng (0 = xoá dòng)",
+        body: { quantity: 3 },
+        message: "Update cart successfully",
+        response: { ...cartDoc, cart_items: [{ product: ID.product, quantity: 3 }], cart_total_quantity: 3 },
+        errors: [
+          [400, "quantity must be a non-negative safe integer"],
+          [404, "Cart not found for the account / Product is not in the cart"],
+          [409, "Requested quantity exceeds available stock (n)"],
+        ],
+      },
+      {
+        method: "DELETE",
+        path: "/cart/items/:productId",
+        auth: "buyer",
+        summary: "Xoá một sản phẩm khỏi giỏ",
+        message: "Remove product from cart successfully",
+        response: { ...cartDoc, cart_items: [], cart_count_products: 0, cart_total_quantity: 0 },
+        errors: [[404, "Cart not found for the account / Product is not in the cart"]],
+      },
+      {
+        method: "DELETE",
+        path: "/cart",
+        auth: "buyer",
+        summary: "Xoá toàn bộ sản phẩm trong giỏ",
+        message: "Clear cart successfully",
+        response: { ...cartDoc, cart_items: [], cart_count_products: 0, cart_total_quantity: 0 },
+        errors: [[404, "Cart not found for the account"]],
+      },
+    ],
+  },
+  {
+    id: "checkout",
+    name: "Checkout",
+    flow: "flow-checkout",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/checkout/review",
+        auth: "buyer",
+        summary: "Xem trước giá, mã giảm và phí ship",
+        description:
+          "Không giữ hàng, không tạo đơn. <code>accountId</code> trong body bị bỏ qua. Phí ship tạm tính 5 / dòng sản phẩm. <code>discount_id</code> không bắt buộc.",
+        body: checkoutBody,
+        message: "Checkout review completed successfully",
+        response: checkoutResult,
+        errors: [
+          [400, "Cart not found / Item … not found in cart / Product … not found for this shop / Duplicate product_id / lỗi mã giảm giá"],
+          [409, "Inventory is not available for product … / Insufficient stock for product …; available: n / Product prices changed; please retry checkout review"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "orders",
+    name: "Orders",
+    flow: "flow-order",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/orders",
+        auth: "buyer",
+        status: 201,
+        summary: "Tạo đơn chờ thanh toán + giữ hàng 15 phút",
+        description:
+          "Idempotent theo <code>requestId</code>: gửi lại cùng requestId và cùng nội dung sẽ nhận lại đơn cũ. Mọi sản phẩm được giữ trong cùng một transaction (all-or-nothing). <b>Yêu cầu MongoDB replica set + Redis.</b>",
+        body: { requestId: ID.request, ...checkoutBody },
+        fields: [
+          ["requestId", "ObjectId hex", "Client sinh một lần cho mỗi lần thử checkout; dùng lại khi retry"],
+          ["cartId, shop_ids", "", "Như /checkout/review"],
+        ],
+        message: "Order created successfully",
+        response: order,
+        errors: [
+          [400, "requestId must be a valid 24-character ID string / lỗi payload checkout"],
+          [409, "requestId was already used with different checkout data / Product is being reserved; please retry with the same requestId / One or more products are not available for purchase / One or more sellers are not active / Inventory không tồn tại hoặc không đủ hàng"],
+        ],
+      },
+      {
+        method: "GET",
+        path: "/orders/:orderId",
+        auth: "buyer",
+        summary: "Xem đơn của mình",
+        description: "Đơn quá hạn được trả <code>status: \"expired\"</code> ngay, kể cả khi job chưa cập nhật DB.",
+        message: "Order retrieved successfully",
+        response: order,
+        errors: [[404, "Order not found"]],
+      },
+      {
+        method: "POST",
+        path: "/orders/:orderId/cancel",
+        auth: "buyer",
+        summary: "Huỷ đơn, hoàn kho",
+        description: "Gọi lại nhiều lần vẫn an toàn. Đơn đã quá hạn sẽ kết thúc ở trạng thái <code>expired</code>.",
+        message: "Order cancelled",
+        response: { ...order, status: "cancelled", cancelledAt: "2026-10-07T00:05:00.000Z" },
+        errors: [
+          [404, "Order not found"],
+          [409, "Reservation is already completed"],
+        ],
+      },
+    ],
+  },
+];
+
+window.API_HELPERS = { AUTH_ERRORS, roleError };
+</script>
+
+<script src="https://cdn.jsdelivr.net/npm/marked@12.0.2/marked.min.js"></script>
+<script src="https://cdn.jsdelivr.net/npm/mermaid@11.4.1/dist/mermaid.min.js"></script>
+<script>
+(() => {
+  const BASE_URL = "http://localhost:3052/v1/api";
+  const AUTH_LABEL = { public: "Công khai", refresh: "Refresh token", buyer: "Buyer+", seller: "Seller+", admin: "Admin" };
+  const STATUS_TEXT = { 200: "OK", 201: "Created", 400: "Bad Request", 401: "Unauthorized", 403: "Forbidden", 404: "Not Found", 409: "Conflict", 429: "Too Many Requests", 500: "Internal Server Error" };
+
+  const content = document.getElementById("content");
+  const sidebar = document.getElementById("sidebar");
+  const esc = (value) => String(value).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]);
+  const el = (tag, attrs = {}, html = "") => {
+    const node = document.createElement(tag);
+    for (const [key, value] of Object.entries(attrs)) node.setAttribute(key, value);
+    node.innerHTML = html;
+    return node;
+  };
+  const store = {
+    get: (key) => { try { return localStorage.getItem(key); } catch { return null; } },
+    set: (key, value) => { try { localStorage.setItem(key, value); } catch { /* storage unavailable */ } },
+  };
+
+  /* ---------- JSON highlighting ---------- */
+  const highlightJson = (value) =>
+    esc(JSON.stringify(value, null, 2)).replace(
+      /(&quot;(?:\\.|[^&]|&(?!quot;))*?&quot;)(\s*:)?|\b(true|false|null)\b|-?\d+(?:\.\d+)?(?:e[+-]?\d+)?/gi,
+      (match, str, colon, literal) => {
+        if (str) return colon ? `<span class="j-key">${str}</span>${colon}` : `<span class="j-str">${str}</span>`;
+        if (literal) return `<span class="j-lit">${match}</span>`;
+        return `<span class="j-num">${match}</span>`;
+      },
+    );
+  const codeBox = (html, raw) =>
+    `<div class="codebox"><button class="copy" data-copy="${esc(raw)}">Copy</button><pre><code>${html}</code></pre></div>`;
+
+  /* ---------- Markdown sections ---------- */
+  const DOC_SECTIONS = [...document.querySelectorAll('script[type="text/markdown"]')];
+  const docNav = [];
+  for (const block of DOC_SECTIONS) {
+    const section = el("section", { id: block.dataset.id, class: "doc md" });
+    section.innerHTML = window.marked ? marked.parse(block.textContent) : `<pre>${esc(block.textContent)}</pre>`;
+    section.querySelectorAll("table").forEach((table) => {
+      const wrap = el("div", { class: "table-wrap" });
+      table.replaceWith(wrap);
+      wrap.appendChild(table);
+    });
+    section.querySelectorAll("pre > code.language-mermaid").forEach((code) => {
+      const diagram = el("div", { class: "mermaid" });
+      diagram.dataset.src = code.textContent;
+      diagram.textContent = code.textContent;
+      code.parentElement.replaceWith(diagram);
+    });
+    content.appendChild(section);
+    docNav.push({ id: block.dataset.id, title: block.dataset.title, group: block.dataset.group });
+  }
+
+  /* ---------- API reference ---------- */
+  const { AUTH_ERRORS, roleError } = window.API_HELPERS;
+  const envelope = (statusCode, message, items, pagination) => ({
+    statusCode,
+    message,
+    metadata: pagination ? { items, pagination } : { items },
+    requestId: "c0ffee00-1234-4abc-9def-0123456789ab",
+    timestamp: "2026-10-07T00:00:00.000Z",
+  });
+  const curlFor = (ep) => {
+    const lines = [`curl -X ${ep.method} "${BASE_URL}${ep.path.replace(/:(\w+)/g, "<$1>")}"`];
+    if (!["public", "refresh"].includes(ep.auth)) lines.push(`  -H "Authorization: Bearer $ACCESS_TOKEN"`);
+    if (ep.auth === "refresh") lines.push(`  --cookie "refreshToken=$REFRESH_TOKEN"`);
+    if (ep.body) {
+      lines.push(`  -H "Content-Type: application/json"`);
+      lines.push(`  -d '${JSON.stringify(ep.body)}'`);
+    }
+    return lines.join(" \\\n");
+  };
+  const table = (head, rows) =>
+    `<div class="table-wrap"><table><thead><tr>${head.map((h) => `<th>${h}</th>`).join("")}</tr></thead><tbody>${rows
+      .map((row) => `<tr>${row.map((cell) => `<td>${cell}</td>`).join("")}</tr>`)
+      .join("")}</tbody></table></div>`;
+  const paramRows = (rows) => rows.map(([name, type, note]) => [`<code>${esc(name)}</code>`, type ? `<code>${esc(type)}</code>` : "", esc(note)]);
+  const statusCell = (code) => `<span class="status s${String(code)[0]}">${code}</span> ${STATUS_TEXT[code] ?? ""}`;
+
+  const renderEndpoint = (ep) => {
+    const okStatus = ep.status ?? 200;
+    const pathParams = [...ep.path.matchAll(/:(\w+)/g)].map((m) => [m[1], "ObjectId", "ID 24 ký tự hex"]);
+    const errors = [
+      ...(!["public", "refresh"].includes(ep.auth) ? AUTH_ERRORS : []),
+      ...(["seller", "admin"].includes(ep.auth) ? [roleError(ep.auth)] : []),
+      ...(ep.errors ?? []),
+    ].sort((a, b) => a[0] - b[0]);
+    const responseExample = envelope(okStatus, ep.message, ep.response ?? null, ep.pagination);
+
+    let body = "";
+    if (ep.description) body += `<p>${ep.description}</p>`;
+    if (pathParams.length) body += `<h5>Path params</h5>${table(["Tên", "Kiểu", "Ghi chú"], paramRows(pathParams))}`;
+    if (ep.query) body += `<h5>Query params</h5>${table(["Tên", "Kiểu", "Ghi chú"], paramRows(ep.query))}`;
+    if (ep.fields) body += `<h5>Body fields</h5>${table(["Field", "Kiểu", "Ràng buộc"], paramRows(ep.fields))}`;
+    body += `<div class="cols"><div>`;
+    body += `<h5>Request</h5>${codeBox(esc(curlFor(ep)), curlFor(ep))}`;
+    if (ep.body) body += codeBox(highlightJson(ep.body), JSON.stringify(ep.body, null, 2));
+    body += `</div><div><h5>Response · ${statusCell(okStatus)}</h5>${codeBox(highlightJson(responseExample), JSON.stringify(responseExample, null, 2))}</div></div>`;
+    if (errors.length) body += `<h5>Lỗi có thể gặp</h5>${table(["HTTP", "message"], errors.map(([code, msg]) => [statusCell(code), esc(msg)]))}`;
+
+    const details = el("details", { class: "ep", id: `ep-${ep.method}-${ep.path}`.replace(/[^\w-]+/g, "-") });
+    details.dataset.search = `${ep.method} ${ep.path} ${ep.summary} ${AUTH_LABEL[ep.auth]}`.toLowerCase();
+    details.innerHTML = `<summary>
+        <span class="badge m-${ep.method}">${ep.method}</span>
+        <span class="path">${esc(ep.path)}</span>
+        <span class="sum">${esc(ep.summary)}</span>
+        <span class="auth ${ep.auth}">${AUTH_LABEL[ep.auth]}</span>
+        <span class="chev">›</span>
+      </summary><div class="ep-body">${body}</div>`;
+    return details;
+  };
+
+  const apiSection = el("section", { id: "api", class: "doc md" });
+  apiSection.innerHTML = `<h1>API reference</h1>
+    <p>Base URL: <code>${BASE_URL}</code>. Mọi response đều dùng chung <a href="#architecture">response envelope</a>;
+    các ví dụ bên dưới hiển thị đầy đủ envelope. Endpoint cần đăng nhập nhận header
+    <code>Authorization: Bearer &lt;accessToken&gt;</code>. Role có thứ bậc <b>admin &gt; seller &gt; buyer</b>:
+    "Seller+" nghĩa là seller hoặc admin.</p>
+    <div class="table-wrap"><table><thead><tr><th>Chủ đề</th><th>Quy ước</th></tr></thead><tbody>
+      <tr><td>ID</td><td>Chuỗi ObjectId 24 ký tự hex</td></tr>
+      <tr><td>Phân trang</td><td><code>?page=1&amp;limit=20</code> (limit tối đa 100) → <code>metadata.pagination</code></td></tr>
+      <tr><td>Rate limit</td><td>signup 10/giờ, login 20/15 phút, refresh 60/15 phút mỗi IP. Header <code>RateLimit-Limit</code>, <code>RateLimit-Remaining</code>, <code>RateLimit-Reset</code>, <code>Retry-After</code></td></tr>
+      <tr><td>Request ID</td><td>Gửi <code>x-request-id</code> để trace xuyên service; server luôn trả lại header này</td></tr>
+      <tr><td>Lỗi chung</td><td>400 JSON hỏng (<code>Malformed JSON body</code>), 404 route không tồn tại, 500 lỗi hệ thống (message ẩn chi tiết)</td></tr>
+    </tbody></table></div>
+    <div class="toolbar">
+      <button class="icon-btn" id="expandAll">Mở tất cả</button>
+      <button class="icon-btn" id="collapseAll">Thu gọn tất cả</button>
+    </div>
+    <p class="empty" id="noResult">Không có endpoint nào khớp từ khoá.</p>`;
+  for (const group of window.API_GROUPS) {
+    const wrap = el("div", { class: "api-group", id: `api-${group.id}` });
+    wrap.appendChild(
+      el(
+        "div",
+        { class: "group-head" },
+        `<h2>${group.name}</h2>${group.flow ? `<a class="flowlink" href="#${group.flow}">Xem flow nghiệp vụ →</a>` : ""}`,
+      ),
+    );
+    group.endpoints.forEach((ep) => wrap.appendChild(renderEndpoint(ep)));
+    apiSection.appendChild(wrap);
+  }
+  content.appendChild(apiSection);
+
+  /* ---------- Sidebar ---------- */
+  const groups = [
+    ["Tài liệu", docNav.filter((d) => d.group === "doc")],
+    ["Flow nghiệp vụ", docNav.filter((d) => d.group === "flow")],
+  ];
+  let nav = "";
+  for (const [title, items] of groups) {
+    nav += `<h4>${title}</h4>${items.map((d) => `<a href="#${d.id}" data-target="${d.id}">${esc(d.title)}</a>`).join("")}`;
+  }
+  nav += `<h4>API reference</h4><a href="#api" data-target="api">Quy ước chung</a>`;
+  for (const group of window.API_GROUPS) {
+    nav += `<a href="#api-${group.id}" data-target="api-${group.id}" data-group="${group.id}">${group.name}</a>`;
+    nav += group.endpoints
+      .map((ep) => {
+        const id = `ep-${ep.method}-${ep.path}`.replace(/[^\w-]+/g, "-");
+        return `<a class="sub" href="#${id}" data-ep="${id}" data-group="${group.id}"><span class="badge m-${ep.method}">${ep.method}</span><code>${esc(ep.path)}</code></a>`;
+      })
+      .join("");
+  }
+  sidebar.innerHTML = nav;
+
+  // Opening an endpoint link expands it.
+  const openFromHash = () => {
+    const target = location.hash && document.getElementById(decodeURIComponent(location.hash.slice(1)));
+    if (target?.tagName === "DETAILS") target.open = true;
+  };
+  window.addEventListener("hashchange", openFromHash);
+  sidebar.addEventListener("click", (event) => {
+    if (event.target.closest("a")) document.body.classList.remove("nav-open");
+  });
+  document.getElementById("menuBtn").addEventListener("click", () => document.body.classList.toggle("nav-open"));
+
+  /* ---------- Scroll spy ---------- */
+  const links = new Map([...sidebar.querySelectorAll("a[data-target]")].map((a) => [a.dataset.target, a]));
+  const observer = new IntersectionObserver(
+    (entries) => {
+      for (const entry of entries) {
+        if (!entry.isIntersecting) continue;
+        sidebar.querySelectorAll("a.active").forEach((a) => a.classList.remove("active"));
+        links.get(entry.target.id)?.classList.add("active");
+      }
+    },
+    { rootMargin: "-70px 0px -70% 0px" },
+  );
+  document.querySelectorAll("section.doc, .api-group").forEach((node) => observer.observe(node));
+
+  /* ---------- Search ---------- */
+  const search = document.getElementById("search");
+  const applySearch = () => {
+    const terms = search.value.trim().toLowerCase().split(/\s+/).filter(Boolean);
+    let shown = 0;
+    document.querySelectorAll(".api-group").forEach((group) => {
+      let groupShown = 0;
+      group.querySelectorAll("details.ep").forEach((ep) => {
+        const match = terms.every((term) => ep.dataset.search.includes(term));
+        ep.hidden = !match;
+        if (terms.length) ep.open = match;
+        sidebar.querySelector(`a[data-ep="${ep.id}"]`)?.classList.toggle("hidden", !match);
+        if (match) groupShown++;
+      });
+      group.hidden = groupShown === 0;
+      sidebar.querySelector(`a[data-target="${group.id}"]`)?.classList.toggle("hidden", groupShown === 0);
+      shown += groupShown;
+    });
+    document.getElementById("noResult").style.display = shown ? "none" : "block";
+  };
+  search.addEventListener("input", () => {
+    applySearch();
+    if (search.value.trim()) document.getElementById("api").scrollIntoView({ behavior: "smooth" });
+  });
+  document.addEventListener("keydown", (event) => {
+    if (event.key === "/" && document.activeElement !== search) {
+      event.preventDefault();
+      search.focus();
+    }
+  });
+  document.getElementById("expandAll").addEventListener("click", () => document.querySelectorAll("details.ep:not([hidden])").forEach((d) => (d.open = true)));
+  document.getElementById("collapseAll").addEventListener("click", () => document.querySelectorAll("details.ep").forEach((d) => (d.open = false)));
+
+  /* ---------- Copy buttons ---------- */
+  content.addEventListener("click", async (event) => {
+    const button = event.target.closest("button.copy");
+    if (!button) return;
+    try {
+      await navigator.clipboard.writeText(button.dataset.copy);
+      button.textContent = "Đã copy";
+    } catch {
+      button.textContent = "Không copy được";
+    }
+    setTimeout(() => (button.textContent = "Copy"), 1500);
+  });
+
+  /* ---------- Theme + Mermaid ---------- */
+  const root = document.documentElement;
+  const isDark = () =>
+    root.dataset.theme ? root.dataset.theme === "dark" : matchMedia("(prefers-color-scheme: dark)").matches;
+  const renderDiagrams = async () => {
+    if (!window.mermaid) return;
+    mermaid.initialize({ startOnLoad: false, theme: isDark() ? "dark" : "default", securityLevel: "loose", flowchart: { htmlLabels: true } });
+    const nodes = [...document.querySelectorAll(".mermaid")];
+    nodes.forEach((node) => {
+      node.removeAttribute("data-processed");
+      node.classList.remove("failed");
+      node.textContent = node.dataset.src;
+    });
+    for (const node of nodes) {
+      try {
+        await mermaid.run({ nodes: [node] });
+        // Keep labels readable on narrow screens: scroll inside the box instead of shrinking.
+        const svg = node.querySelector("svg");
+        const natural = parseFloat(svg?.style.maxWidth);
+        if (svg && natural) svg.style.minWidth = `${Math.min(natural, 720)}px`;
+      } catch (error) {
+        node.classList.add("failed");
+        node.textContent = node.dataset.src;
+        console.error("Mermaid render failed", error);
+      }
+    }
+  };
+  const savedTheme = store.get("docs-theme");
+  if (savedTheme === "light" || savedTheme === "dark") root.dataset.theme = savedTheme;
+  document.getElementById("themeBtn").addEventListener("click", () => {
+    root.dataset.theme = isDark() ? "light" : "dark";
+    store.set("docs-theme", root.dataset.theme);
+    renderDiagrams();
+  });
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => {
+    if (!root.dataset.theme) renderDiagrams();
+  });
+
+  renderDiagrams().then(() => {
+    openFromHash();
+    if (location.hash) document.getElementById(decodeURIComponent(location.hash.slice(1)))?.scrollIntoView();
+  });
+})();
+</script>
+</body>
+</html>
