@@ -1,5 +1,3 @@
-"use strict";
-
 import dotenv from "dotenv";
 
 dotenv.config({ quiet: true });
@@ -102,6 +100,9 @@ const config = Object.freeze({
       windowMs: readNumber("AUTH_REFRESH_RATE_WINDOW_MS", 15 * 60 * 1000),
       max: readNumber("AUTH_REFRESH_RATE_MAX", 60),
     }),
+  }),
+  redis: Object.freeze({
+    url: readString("REDIS_URL", "redis://127.0.0.1:6379"),
   }),
   logging: Object.freeze({
     level: readString("LOG_LEVEL", isProduction ? "info" : "debug"),

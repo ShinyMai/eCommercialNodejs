@@ -1,7 +1,5 @@
-"use strict";
-
 import config from "#/configs/index.js";
-import db from "#/dbs/init.mongodb.js";
+import db from "#/configs/mongodb.config.js";
 import mongoose from "mongoose";
 import { seedDefaultData } from "./default-data.js";
 

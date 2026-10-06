@@ -1,73 +1,66 @@
-"use strict";
-
 import mongoose, { Types } from "mongoose";
-import { validateObjectId } from "#/common/utils/index.js";
 import { BadRequestError, ConflictRequestError, NotFoundError } from "#/core/error.response.js";
-import { AccountModel } from "#/models/account.model.js";
-import { CartModel } from "#/models/cart.model.js";
-import { InventoryModel } from "#/models/inventory.model.js";
-import { ProductModel } from "#/models/products.model.js";
+import { createCart, findCartDocumentByAccount, findCartItemsByAccount } from "#/repositories/cart.repo.js";
+import { findStock } from "#/repositories/inventory.repo.js";
+import { findProductAvailability, findProductPrices } from "#/repositories/product.repo.js";
+import { activeSellerExists } from "#/repositories/account.repo.js";
+import { isDuplicateKeyError, sum, validateObjectId } from "#/utils/index.js";
 
 const MAX_CART_ITEMS = 100;
 const MAX_WRITE_ATTEMPTS = 3;
 
+type CartDocument = NonNullable<Awaited<ReturnType<typeof findCartDocumentByAccount>>>;
+
 const parseAccountId = (accountId: string) => validateObjectId(accountId, "accountId");
 const parseProductId = (productId: string) => validateObjectId(productId, "productId");
 
-const parseCartIds = (accountId: string, productId: string) => ({
-  accountObjectId: parseAccountId(accountId),
-  productObjectId: parseProductId(productId),
-});
-
-const validateQuantity = (quantity: number, allowZero = false) => {
-  const minimum = allowZero ? 0 : 1;
-  if (!Number.isSafeInteger(quantity) || quantity < minimum) {
+const validateQuantity = (quantity: number, { allowZero = false } = {}) => {
+  if (!Number.isSafeInteger(quantity) || quantity < (allowZero ? 0 : 1)) {
     throw new BadRequestError(
       allowZero ? "quantity must be a non-negative safe integer" : "quantity must be a positive safe integer",
     );
   }
 };
 
-const validateProductAvailability = async (productId: Types.ObjectId, requestedQuantity: number) => {
-  const product = await ProductModel.findById(productId).select("product_seller +isDraft +isPublished").lean().exec();
 
-  if (!product) {
-    throw new NotFoundError("Product not found");
-  }
+const getCartOrThrow = async (accountId: Types.ObjectId) => {
+  const cart = await findCartDocumentByAccount(accountId);
+  if (!cart) throw new NotFoundError("Cart not found for the account");
+  return cart;
+};
+
+const findItemIndex = (cart: CartDocument | null, productId: Types.ObjectId) =>
+  cart?.cart_items.findIndex((item) => item.product.equals(productId)) ?? -1;
+
+const getItemIndexOrThrow = (cart: CartDocument, productId: Types.ObjectId) => {
+  const index = findItemIndex(cart, productId);
+  if (index === -1) throw new NotFoundError("Product is not in the cart");
+  return index;
+};
+
+/** Ensures the product is published, its seller is active and stock covers the requested quantity. */
+const validateProductAvailability = async (productId: Types.ObjectId, requestedQuantity: number) => {
+  const product = await findProductAvailability(productId);
+  if (!product) throw new NotFoundError("Product not found");
   if (product.isDraft !== false || product.isPublished !== true) {
     throw new ConflictRequestError("Product is not available for purchase");
   }
 
   const [sellerExists, inventory] = await Promise.all([
-    AccountModel.exists({
-      _id: product.product_seller,
-      role: { $in: ["seller", "admin"] },
-      status: "active",
-    }),
-    InventoryModel.findOne({
-      inven_productId: productId,
-      inven_sellerId: product.product_seller,
-    })
-      .select("inven_stock")
-      .lean()
-      .exec(),
+    activeSellerExists(product.product_seller),
+    findStock(productId, product.product_seller),
   ]);
-
-  if (!sellerExists) {
-    throw new ConflictRequestError("Product seller is not active");
-  }
-  if (!inventory) {
-    throw new ConflictRequestError("Product inventory is not available");
-  }
+  if (!sellerExists) throw new ConflictRequestError("Product seller is not active");
+  if (!inventory) throw new ConflictRequestError("Product inventory is not available");
   if (requestedQuantity > inventory.inven_stock) {
     throw new ConflictRequestError(`Requested quantity exceeds available stock (${inventory.inven_stock})`);
   }
 };
 
-const isRetryableCartWriteError = <T>(error: T) =>
-  error instanceof mongoose.Error.VersionError ||
-  (error instanceof Error && "code" in error && (error as Error & { code?: number }).code === 11_000);
+const isRetryableCartWriteError = (error: unknown) =>
+  error instanceof mongoose.Error.VersionError || isDuplicateKeyError(error);
 
+/** Carts use optimistic concurrency; retry read-modify-write cycles that lost a race. */
 const withCartWriteRetry = async <T>(operation: () => Promise<T>): Promise<T> => {
   for (let attempt = 0; attempt < MAX_WRITE_ATTEMPTS; attempt += 1) {
     try {
@@ -76,88 +69,61 @@ const withCartWriteRetry = async <T>(operation: () => Promise<T>): Promise<T> =>
       if (!isRetryableCartWriteError(error)) throw error;
     }
   }
-
   throw new ConflictRequestError("Cart was modified concurrently; please retry");
 };
 
 class CartService {
   static async addProductToCart(accountId: string, productId: string, quantity: number) {
     validateQuantity(quantity);
-    const { accountObjectId, productObjectId } = parseCartIds(accountId, productId);
+    const accountObjectId = parseAccountId(accountId);
+    const productObjectId = parseProductId(productId);
 
     return withCartWriteRetry(async () => {
-      const accountCart = await CartModel.findOne({ cart_account: accountObjectId }).exec();
-      const existingItemIndex = accountCart?.cart_items.findIndex((item) => item.product.equals(productObjectId)) ?? -1;
-      const resultingQuantity =
-        existingItemIndex === -1 ? quantity : accountCart!.cart_items[existingItemIndex].quantity + quantity;
+      const cart = await findCartDocumentByAccount(accountObjectId);
+      const itemIndex = findItemIndex(cart, productObjectId);
+      const isNewItem = itemIndex === -1;
+      const resultingQuantity = isNewItem ? quantity : cart!.cart_items[itemIndex].quantity + quantity;
 
-      if (accountCart && existingItemIndex === -1 && accountCart.cart_items.length >= MAX_CART_ITEMS) {
+      if (cart && isNewItem && cart.cart_items.length >= MAX_CART_ITEMS) {
         throw new ConflictRequestError(`Cart cannot contain more than ${MAX_CART_ITEMS} distinct products`);
       }
-
       await validateProductAvailability(productObjectId, resultingQuantity);
 
-      if (!accountCart) {
-        return CartModel.create({
-          cart_account: accountObjectId,
-          cart_items: [{ product: productObjectId, quantity }],
-        });
+      if (!cart) {
+        return createCart(accountObjectId, [{ product: productObjectId, quantity }]);
       }
-
-      if (existingItemIndex === -1) {
-        accountCart.cart_items.push({ product: productObjectId, quantity });
-      } else {
-        accountCart.cart_items[existingItemIndex].quantity = resultingQuantity;
-      }
-
-      return accountCart.save();
+      if (isNewItem) cart.cart_items.push({ product: productObjectId, quantity });
+      else cart.cart_items[itemIndex].quantity = resultingQuantity;
+      return cart.save();
     });
   }
 
-  // Set product quantity; quantity zero removes the product.
+  /** Sets the product quantity; zero removes the product. */
   static async updateProductQuantity(accountId: string, productId: string, quantity: number) {
-    validateQuantity(quantity, true);
-    const { accountObjectId, productObjectId } = parseCartIds(accountId, productId);
+    validateQuantity(quantity, { allowZero: true });
+    if (quantity === 0) return CartService.removeProductFromCart(accountId, productId);
 
+    const accountObjectId = parseAccountId(accountId);
+    const productObjectId = parseProductId(productId);
     return withCartWriteRetry(async () => {
-      const accountCart = await CartModel.findOne({ cart_account: accountObjectId }).exec();
-      if (!accountCart) {
-        throw new NotFoundError("Cart not found for the account");
-      }
-
-      const existingItemIndex = accountCart.cart_items.findIndex((item) => item.product.equals(productObjectId));
-      if (existingItemIndex === -1) {
-        throw new NotFoundError("Product is not in the cart");
-      }
-
-      if (quantity === 0) {
-        accountCart.cart_items.splice(existingItemIndex, 1);
-      } else {
-        await validateProductAvailability(productObjectId, quantity);
-        accountCart.cart_items[existingItemIndex].quantity = quantity;
-      }
-
-      return accountCart.save();
+      const cart = await getCartOrThrow(accountObjectId);
+      const itemIndex = getItemIndexOrThrow(cart, productObjectId);
+      await validateProductAvailability(productObjectId, quantity);
+      cart.cart_items[itemIndex].quantity = quantity;
+      return cart.save();
     });
   }
 
   static async getCartItems(accountId: string) {
-    const accountObjectId = parseAccountId(accountId);
-    const accountCart = await CartModel.findOne({ cart_account: accountObjectId }).select("cart_items").lean().exec();
+    const cart = await findCartItemsByAccount(parseAccountId(accountId));
+    if (!cart) throw new NotFoundError("Cart not found for the account");
 
-    if (!accountCart) {
-      throw new NotFoundError("Cart not found for the account");
-    }
-
-    const productIds = accountCart.cart_items.map((item) => item.product);
+    const productIds = cart.cart_items.map((item) => item.product);
     const products = productIds.length
-      ? await ProductModel.find({ _id: { $in: productIds } })
-          .select("_id product_price")
-          .lean()
-          .exec()
+      ? await findProductPrices(productIds)
       : [];
     const priceByProductId = new Map(products.map((product) => [product._id.toString(), product.product_price]));
-    const cartItems = accountCart.cart_items.map((item) => ({
+    const cartItems = cart.cart_items.map((item) => ({
       product: item.product,
       quantity: item.quantity,
       product_price: priceByProductId.get(item.product.toString()) ?? null,
@@ -166,26 +132,18 @@ class CartService {
     return {
       cart_items: cartItems,
       cart_count_products: cartItems.length,
-      cart_total_quantity: cartItems.reduce((total, item) => total + item.quantity, 0),
+      cart_total_quantity: sum(cartItems, (item) => item.quantity),
     };
   }
 
   static async removeProductFromCart(accountId: string, productId: string) {
-    const { accountObjectId, productObjectId } = parseCartIds(accountId, productId);
+    const accountObjectId = parseAccountId(accountId);
+    const productObjectId = parseProductId(productId);
 
     return withCartWriteRetry(async () => {
-      const accountCart = await CartModel.findOne({ cart_account: accountObjectId }).exec();
-      if (!accountCart) {
-        throw new NotFoundError("Cart not found for the account");
-      }
-
-      const existingItemIndex = accountCart.cart_items.findIndex((item) => item.product.equals(productObjectId));
-      if (existingItemIndex === -1) {
-        throw new NotFoundError("Product is not in the cart");
-      }
-
-      accountCart.cart_items.splice(existingItemIndex, 1);
-      return accountCart.save();
+      const cart = await getCartOrThrow(accountObjectId);
+      cart.cart_items.splice(getItemIndexOrThrow(cart, productObjectId), 1);
+      return cart.save();
     });
   }
 
@@ -193,14 +151,9 @@ class CartService {
     const accountObjectId = parseAccountId(accountId);
 
     return withCartWriteRetry(async () => {
-      const accountCart = await CartModel.findOne({ cart_account: accountObjectId }).exec();
-      if (!accountCart) {
-        throw new NotFoundError("Cart not found for the account");
-      }
-
-      accountCart.cart_items.splice(0, accountCart.cart_items.length);
-      accountCart.save();
-      return;
+      const cart = await getCartOrThrow(accountObjectId);
+      cart.cart_items.splice(0, cart.cart_items.length);
+      return cart.save();
     });
   }
 }

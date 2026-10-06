@@ -1,23 +1,16 @@
-"use strict";
-
 import { Router } from "express";
-import authRouter from "#/routes/auth/index.js";
-import productRouter from "#/routes/product/index.js";
-import discountRouter from "#/routes/discount/index.js";
-import accountRouter from "#/routes/accounts/index.js";
-import cartRouter from "#/routes/cart/index.js";
-import checkoutRouter from "#/routes/checkout/index.js";
-import orderRouter from "#/routes/order/index.js";
 import { SuccessResponse } from "#/core/success.response.js";
+import accountRouter from "#/routes/account.route.js";
+import authRouter from "#/routes/auth.route.js";
+import cartRouter from "#/routes/cart.route.js";
+import checkoutRouter from "#/routes/checkout.route.js";
+import discountRouter from "#/routes/discount.route.js";
+import orderRouter from "#/routes/order.route.js";
+import productRouter from "#/routes/product.route.js";
 
 const router = Router();
 
-router.get("/health", (_req, res) => {
-  return SuccessResponse.ok(res, {
-    message: "Service is healthy",
-    items: null,
-  });
-});
+router.get("/health", (_req, res) => SuccessResponse.ok(res, { message: "Service is healthy", items: null }));
 
 router.use("/auth", authRouter);
 router.use("/products", productRouter);

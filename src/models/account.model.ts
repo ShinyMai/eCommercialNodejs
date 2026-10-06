@@ -1,5 +1,3 @@
-"use strict";
-
 import { ACCOUNT_ROLES } from "#/auth/roles.js";
 import mongoose, { InferSchemaType, Schema } from "mongoose";
 import type { RuntimeValue } from "#/types/value.types.js";

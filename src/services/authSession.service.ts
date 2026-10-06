@@ -1,15 +1,29 @@
-"use strict";
-
+import { Types, type UpdateResult } from "mongoose";
 import { createRefreshToken, hashToken } from "#/auth/token.js";
 import config from "#/configs/index.js";
 import { AuthFailureError } from "#/core/error.response.js";
 import { AuthSessionModel } from "#/models/authSession.model.js";
-import { Types, type UpdateResult } from "mongoose";
 
 const activeSessionFilter = (now: Date) => ({
   revokedAt: null,
   expiresAt: { $gt: now },
 });
+
+const revokeSession = (sessionId: Types.ObjectId) =>
+  AuthSessionModel.updateOne({ _id: sessionId, revokedAt: null }, { $set: { revokedAt: new Date() } });
+
+/**
+ * A previously rotated token being presented again means it leaked: revoke the whole session.
+ * Returns true when reuse was detected.
+ */
+const revokeIfReused = async (tokenHash: string): Promise<boolean> => {
+  const reusedSession = await AuthSessionModel.findOne({ usedTokenHashes: tokenHash }).select("_id").lean();
+  if (!reusedSession) return false;
+  await revokeSession(reusedSession._id);
+  return true;
+};
+
+const reuseDetected = () => new AuthFailureError("Refresh token reuse detected; session revoked");
 
 export default class AuthSessionService {
   static async create(accountId: string) {
@@ -24,75 +38,37 @@ export default class AuthSessionService {
     return { refreshToken, session };
   }
 
+  /** Exchanges a refresh token for a new one (rotation with reuse detection). */
   static async rotate(refreshToken: string) {
-    if (typeof refreshToken !== "string" || !refreshToken) {
-      throw new AuthFailureError("Missing refresh token");
-    }
+    if (typeof refreshToken !== "string" || !refreshToken) throw new AuthFailureError("Missing refresh token");
 
     const tokenHash = hashToken(refreshToken);
-    const reusedSession = await AuthSessionModel.findOne({ usedTokenHashes: tokenHash })
-      .select("+usedTokenHashes")
-      .lean();
-    if (reusedSession) {
-      await AuthSessionModel.updateOne(
-        { _id: reusedSession._id, revokedAt: null },
-        { $set: { revokedAt: new Date() } },
-      );
-      throw new AuthFailureError("Refresh token reuse detected; session revoked");
-    }
+    if (await revokeIfReused(tokenHash)) throw reuseDetected();
 
     const now = new Date();
-    const currentSession = await AuthSessionModel.findOne({
-      refreshTokenHash: tokenHash,
-      ...activeSessionFilter(now),
-    })
-      .select("+refreshTokenHash +usedTokenHashes")
+    const currentSession = await AuthSessionModel.findOne({ refreshTokenHash: tokenHash, ...activeSessionFilter(now) })
+      .select("_id")
       .lean();
     if (!currentSession) {
       // A concurrent request may have rotated the token after the first reuse check.
-      const concurrentlyRotated = await AuthSessionModel.findOne({
-        usedTokenHashes: tokenHash,
-      })
-        .select("+usedTokenHashes")
-        .lean();
-      if (concurrentlyRotated) {
-        await AuthSessionModel.updateOne(
-          { _id: concurrentlyRotated._id, revokedAt: null },
-          { $set: { revokedAt: new Date() } },
-        );
-        throw new AuthFailureError("Refresh token reuse detected; session revoked");
-      }
+      if (await revokeIfReused(tokenHash)) throw reuseDetected();
       throw new AuthFailureError("Invalid or expired refresh token");
     }
 
     const nextRefreshToken = createRefreshToken();
     const rotatedSession = await AuthSessionModel.findOneAndUpdate(
+      { _id: currentSession._id, refreshTokenHash: tokenHash, ...activeSessionFilter(now) },
       {
-        _id: currentSession._id,
-        refreshTokenHash: tokenHash,
-        ...activeSessionFilter(now),
-      },
-      {
-        $set: {
-          refreshTokenHash: hashToken(nextRefreshToken),
-          lastUsedAt: now,
-        },
-        $push: {
-          usedTokenHashes: {
-            $each: [tokenHash],
-            $slice: -config.auth.refreshTokenHistoryLimit,
-          },
-        },
+        $set: { refreshTokenHash: hashToken(nextRefreshToken), lastUsedAt: now },
+        $push: { usedTokenHashes: { $each: [tokenHash], $slice: -config.auth.refreshTokenHistoryLimit } },
       },
       { new: true },
     ).lean();
 
     if (!rotatedSession) {
-      await AuthSessionModel.updateOne(
-        { _id: currentSession._id, revokedAt: null },
-        { $set: { revokedAt: new Date() } },
-      );
-      throw new AuthFailureError("Refresh token reuse detected; session revoked");
+      // Lost the race against another rotation of the same token.
+      await revokeSession(currentSession._id);
+      throw reuseDetected();
     }
 
     return { refreshToken: nextRefreshToken, session: rotatedSession };
@@ -109,9 +85,6 @@ export default class AuthSessionService {
 
   static revokeById(sessionId: string): Promise<UpdateResult | null> {
     if (!Types.ObjectId.isValid(sessionId)) return Promise.resolve(null);
-    return AuthSessionModel.updateOne(
-      { _id: new Types.ObjectId(sessionId), revokedAt: null },
-      { $set: { revokedAt: new Date() } },
-    ).exec();
+    return revokeSession(new Types.ObjectId(sessionId)).exec();
   }
 }

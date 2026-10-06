@@ -1,52 +1,36 @@
-"use strict";
-
+import type { Request, Response } from "express";
 import { SuccessResponse } from "#/core/success.response.js";
-import { Request, Response } from "express";
 import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";
-import { getPagination } from "#/common/utils/index.js";
-import { BadRequestError } from "#/core/error.response.js";
-import DiscountService, {
+import DiscountService from "#/services/discount.service.js";
+import { getPagination, getQueryString } from "#/utils/index.js";
+import {
+  parseCalculateDiscountInput,
   type CalculateDiscountInput,
   type DiscountInput,
-} from "#/services/discount.service.js";
+} from "#/validators/discount.validator.js";
 
 class DiscountController {
   static async createDiscountCode(req: AuthenticatedRequest<DiscountInput>, res: Response) {
     return SuccessResponse.created(res, {
       message: "Discount code created successfully",
-      items: await DiscountService.createDiscountCode(
-        req.body,
-        req.auth.accountId,
-      ),
+      items: await DiscountService.createDiscountCode(req.body, req.auth.accountId),
     });
   }
 
   static async updateDiscountCode(req: AuthenticatedRequest<Partial<DiscountInput>>, res: Response) {
-    const discountId = String(req.params.id);
-    if (!discountId) {
-      throw new BadRequestError("Discount ID is required");
-    }
-
     return SuccessResponse.ok(res, {
       message: "Discount code updated successfully",
-      items: await DiscountService.updateDiscountCode(
-        discountId,
-        req.body,
-        req.auth.accountId,
-      ),
+      items: await DiscountService.updateDiscountCode(String(req.params.id), req.body, req.auth.accountId),
     });
   }
 
   static async getListDiscountCode(req: Request, res: Response) {
     const { limit, page } = getPagination(req.query);
-    const sellerId = typeof req.query.sellerId === "string" ? req.query.sellerId : undefined;
-    const productId = typeof req.query.productId === "string" ? req.query.productId : undefined;
-
     return SuccessResponse.ok(res, {
       message: "Discount codes retrieved successfully",
       items: await DiscountService.getListDiscountCode({
-        sellerId,
-        productId,
+        sellerId: getQueryString(req.query, "sellerId"),
+        productId: getQueryString(req.query, "productId"),
         limit,
         page,
       }),
@@ -55,45 +39,24 @@ class DiscountController {
   }
 
   static async getDiscountAmount(req: AuthenticatedRequest<CalculateDiscountInput>, res: Response) {
-    const discountId = String(req.params.id);
-    const { products, sellerId } = req.body;
-
-    if (!discountId || !Array.isArray(products) || !sellerId) {
-      throw new BadRequestError("Discount ID, products, and sellerId are required");
-    }
-
+    const { products, sellerId } = parseCalculateDiscountInput(req.body);
     return SuccessResponse.ok(res, {
       message: "Discount amount calculated successfully",
-      items: await DiscountService.getDiscountAmount(
-        discountId,
-        products,
-        String(sellerId),
-        req.auth.accountId,
-      ),
+      items: await DiscountService.getDiscountAmount(String(req.params.id), products, sellerId, req.auth.accountId),
     });
   }
 
   static async deleteDiscountCode(req: AuthenticatedRequest, res: Response) {
-    const discountId = String(req.params.id);
-    if (!discountId) {
-      throw new BadRequestError("Discount ID is required");
-    }
-
     return SuccessResponse.ok(res, {
       message: "Discount code deleted successfully",
-      items: await DiscountService.deleteDiscountCode(discountId, req.auth.accountId),
+      items: await DiscountService.deleteDiscountCode(String(req.params.id), req.auth.accountId),
     });
   }
 
   static async cancelDiscountCode(req: AuthenticatedRequest, res: Response) {
-    const discountId = String(req.params.id);
-    if (!discountId) {
-      throw new BadRequestError("Discount ID is required");
-    }
-
     return SuccessResponse.ok(res, {
       message: "Discount code cancelled successfully",
-      items: await DiscountService.cancelDiscountCode(discountId, req.auth.accountId),
+      items: await DiscountService.cancelDiscountCode(String(req.params.id), req.auth.accountId),
     });
   }
 }

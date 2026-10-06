@@ -1,5 +1,3 @@
-"use strict";
-
 import type { Response } from "express";
 import { SuccessResponse } from "#/core/success.response.js";
 import type { AuthenticatedRequest } from "#/middlewares/authentication.middleware.js";

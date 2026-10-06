@@ -1,10 +1,10 @@
 import app from "./src/app.js";
 import config from "#/configs/index.js";
-import database from "#/dbs/init.mongodb.js";
-import startDatabaseMonitor from "#/helpers/check.connect.js";
-import log from "#/helpers/logger.js";
+import database from "#/configs/mongodb.config.js";
 import { connectRedis, disconnectRedis } from "#/configs/redis.config.js";
-import { startReservationCleanup } from "#/helpers/reservation.cleanup.js";
+import log from "#/helpers/logger.js";
+import startDatabaseMonitor from "#/jobs/databaseMonitor.job.js";
+import { startReservationCleanup } from "#/jobs/reservationCleanup.job.js";
 
 const bootstrap = async () => {
   await connectRedis();
@@ -19,7 +19,7 @@ const bootstrap = async () => {
   });
 
   let shuttingDown = false;
-  const shutdown = async (signal: NodeJS.Signals) => {
+  const shutdown = (signal: NodeJS.Signals) => {
     if (shuttingDown) return;
     shuttingDown = true;
     log.info(`${signal} received; shutting down`);
@@ -39,8 +39,8 @@ const bootstrap = async () => {
     });
   };
 
-  process.once("SIGINT", () => void shutdown("SIGINT"));
-  process.once("SIGTERM", () => void shutdown("SIGTERM"));
+  process.once("SIGINT", () => shutdown("SIGINT"));
+  process.once("SIGTERM", () => shutdown("SIGTERM"));
 };
 
 bootstrap().catch((error) => {

@@ -1,5 +1,3 @@
-"use strict";
-
 interface PaginationMetadata {
   page: number;
   limit: number;
