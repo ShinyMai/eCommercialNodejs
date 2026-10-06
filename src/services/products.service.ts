@@ -2,15 +2,8 @@
 
 import { BadRequestError, NotFoundError } from "#/core/error.response.js";
 import { ProductModel } from "#/models/products.model.js";
-import {
-  detailProduct,
-  findProducts,
-  setProductsPublication,
-} from "#/models/repositories/product.repo.js";
-import {
-  insertInventory,
-  setInventoryStock,
-} from "#/models/repositories/inventory.repo.js";
+import { detailProduct, findProducts, setProductsPublication } from "#/models/repositories/product.repo.js";
+import { insertInventory, setInventoryStock } from "#/models/repositories/inventory.repo.js";
 import { Types } from "mongoose";
 import slugify from "slugify";
 import type { RuntimeRecord } from "#/types/value.types.js";
@@ -89,14 +82,12 @@ const parseProductType = (value: ProductType | undefined): ProductType => {
   return value as ProductType;
 };
 
-const parseAttributes = (
-  value: ProductAttributesInput,
-  productType: ProductType,
-): Record<string, string> => {
+const parseAttributes = (value: ProductAttributesInput, productType: ProductType): Record<string, string> => {
   const attributes = asRecord(value, "product_attributes");
-  const fields = productType === "Clothing"
-    ? ["brand", "size", "material"] as const
-    : ["manufacturer", "model", "color"] as const;
+  const fields =
+    productType === "Clothing"
+      ? (["brand", "size", "material"] as const)
+      : (["manufacturer", "model", "color"] as const);
   return Object.fromEntries(
     fields.map((field) => [field, requiredString(attributes[field], `product_attributes.${field}`, 150)]),
   );
@@ -108,9 +99,7 @@ const parseCreateInput = (value: CreateProductInput) => {
   return {
     product_name: requiredString(input.product_name, "product_name", 200),
     product_thumbnail: requiredString(input.product_thumbnail, "product_thumbnail", 2_000),
-    product_description: typeof input.product_description === "string"
-      ? input.product_description.trim()
-      : "",
+    product_description: typeof input.product_description === "string" ? input.product_description.trim() : "",
     product_price: nonNegativeNumber(input.product_price, "product_price"),
     product_quantity: nonNegativeInteger(input.product_quantity, "product_quantity"),
     product_type: productType,
@@ -119,10 +108,7 @@ const parseCreateInput = (value: CreateProductInput) => {
   };
 };
 
-const parseUpdateInput = (
-  value: Partial<CreateProductInput>,
-  existingType: ProductType,
-): ProductUpdate => {
+const parseUpdateInput = (value: Partial<CreateProductInput>, existingType: ProductType): ProductUpdate => {
   const input = asRecord(value, "product");
   if (input.product_type !== undefined && parseProductType(input.product_type) !== existingType) {
     throw new BadRequestError("product_type cannot be changed");
@@ -188,7 +174,9 @@ class ProductService {
     const existing = await ProductModel.findOne({
       _id: productId,
       product_seller: sellerId,
-    }).select("product_type").lean();
+    })
+      .select("product_type")
+      .lean();
     if (!existing) throw new NotFoundError("Product not found");
 
     const update = parseUpdateInput(input, existing.product_type);
@@ -241,11 +229,7 @@ class ProductService {
     skip: number;
   }) {
     if (!Types.ObjectId.isValid(sellerId)) throw new BadRequestError("Invalid seller ID");
-    const statusFilter = status === "all"
-      ? {}
-      : status === "published"
-        ? { isPublished: true }
-        : { isDraft: true };
+    const statusFilter = status === "all" ? {} : status === "published" ? { isPublished: true } : { isDraft: true };
     return findProducts({
       filter: { product_seller: new Types.ObjectId(sellerId), ...statusFilter },
       limit,

@@ -5,6 +5,19 @@ import mongoose, { InferSchemaType, Schema } from "mongoose";
 const DOCUMENT_NAME = "Inventory";
 const COLLECTION_NAME = "inventories";
 
+const reservationSchema = new Schema(
+  {
+    reservationId: { type: String },
+    cartId: { type: String, required: true },
+    quantity: { type: Number, required: true, min: 1 },
+    reservedAt: { type: Date, required: true },
+    expiresAt: { type: Date },
+    status: { type: String, enum: ["active", "confirmed", "cancelled", "expired"] },
+    completedAt: { type: Date },
+  },
+  { _id: false },
+);
+
 const inventorySchema = new Schema(
   {
     inven_productId: {
@@ -28,7 +41,7 @@ const inventorySchema = new Schema(
       required: true,
     },
     inven_reservations: {
-      type: [Schema.Types.Mixed],
+      type: [reservationSchema],
       default: [],
     },
   },
@@ -39,6 +52,7 @@ const inventorySchema = new Schema(
 );
 
 inventorySchema.index({ inven_productId: 1, inven_sellerId: 1 }, { unique: true });
+inventorySchema.index({ "inven_reservations.status": 1, "inven_reservations.expiresAt": 1 });
 
 export type Inventory = InferSchemaType<typeof inventorySchema>;
 export const InventoryModel = mongoose.model(DOCUMENT_NAME, inventorySchema);

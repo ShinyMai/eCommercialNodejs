@@ -15,7 +15,7 @@
     "db:seed": "node --conditions=development --import tsx scripts/seed-default.ts",
     "db:reset": "node --conditions=development --import tsx scripts/reset-database.ts",
     "typecheck": "tsc --noEmit",
-    "test": "node --conditions=development --import tsx --test tests/app.test.ts tests/auth.test.ts tests/checkout.test.ts",
+    "test": "node --conditions=development --import tsx --test tests/app.test.ts tests/auth.test.ts tests/checkout.test.ts tests/redis.test.ts tests/inventoryReservation.test.ts tests/order.test.ts",
     "check": "npm run typecheck && npm test && npm run build",
     "start": "node dist/server.js"
   },
@@ -26,6 +26,7 @@
     "express": "^5.2.1",
     "jsonwebtoken": "^9.0.3",
     "mongoose": "^9.9.1",
+    "redis": "^6.3.0",
     "slugify": "^1.6.9",
     "winston": "^3.19.0"
   },

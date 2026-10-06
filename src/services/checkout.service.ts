@@ -3,29 +3,44 @@
 import { BadRequestError, ConflictRequestError } from "#/core/error.response.js";
 import { CartModel } from "#/models/cart.model.js";
 import { ProductModel } from "#/models/products.model.js";
+import { InventoryModel } from "#/models/inventory.model.js";
 import DiscountService from "#/services/discount.service.js";
-
 import { validateReviewCheckoutPayload } from "#/models/repositories/checkout.repo.js";
 export type { ReviewCheckoutPayload } from "#/models/repositories/checkout.repo.js";
+import type { ClientSession } from "mongoose";
 
 class CheckoutService {
-  static async reviewCheckout(payload: unknown, authenticatedAccountId?: string) {
+  static async reviewCheckout(payload: unknown, authenticatedAccountId?: string, session?: ClientSession) {
     const { cartId, accountId, shop_ids } = validateReviewCheckoutPayload(payload, authenticatedAccountId);
-    const foundCart = await CartModel.findOne({ _id: cartId, cart_account: accountId });
+    const cartQuery = CartModel.findOne({ _id: cartId, cart_account: accountId });
+    if (session) cartQuery.session(session);
+    const foundCart = await cartQuery;
 
     if (!foundCart) {
       throw new BadRequestError("Cart not found");
     }
 
     // Tìm các products trong giỏ hàng dựa trên shop_ids và items
-    const products = await ProductModel.find({
+    const productQuery = ProductModel.find({
       _id: { $in: shop_ids.flatMap((shop) => shop.items.map((item) => item.product_id)) },
-    })
-      .select("product_price product_seller")
+    });
+    if (session) productQuery.session(session);
+    const products = await productQuery.select("product_price product_seller")
       .lean()
       .exec();
     // Tạo một bản đồ để tra cứu sản phẩm theo product_id
     const productById = new Map(products.map((product) => [product._id.toString(), product]));
+    const inventoryQuery = InventoryModel.find({
+      $or: shop_ids.flatMap((shop) => shop.items.map((item) => ({
+        inven_productId: item.product_id,
+        inven_sellerId: shop.shop_id,
+      }))),
+    });
+    if (session) inventoryQuery.session(session);
+    const inventories = await inventoryQuery.select("inven_productId inven_sellerId inven_stock").lean().exec();
+    const stockByProductAndSeller = new Map(inventories.map((inventory) => [
+      `${inventory.inven_productId}:${inventory.inven_sellerId}`, inventory.inven_stock,
+    ]));
 
     const selectedShops = shop_ids.map((shop) => {
       const shopItems = shop.items.map((item) => {
@@ -37,6 +52,13 @@ class CheckoutService {
         const product = productById.get(item.product_id);
         if (!product || product.product_seller.toString() !== shop.shop_id) {
           throw new BadRequestError(`Product ${item.product_id} not found for this shop`);
+        }
+        const stock = stockByProductAndSeller.get(`${item.product_id}:${shop.shop_id}`);
+        if (stock === undefined) {
+          throw new ConflictRequestError(`Inventory is not available for product ${item.product_id}`);
+        }
+        if (!Number.isFinite(stock) || stock < 0 || item.quantity > stock) {
+          throw new ConflictRequestError(`Insufficient stock for product ${item.product_id}; available: ${stock}`);
         }
         return {
           product_id: item.product_id,
@@ -62,6 +84,7 @@ class CheckoutService {
           shop.items.map((item) => ({ productId: item.product_id, quantity: item.quantity })),
           shopId,
           accountId,
+          session,
         );
         // DiscountService reads prices again; reject a changed subtotal instead of mixing snapshots.
         if (discount.totalPrice !== total_price) {

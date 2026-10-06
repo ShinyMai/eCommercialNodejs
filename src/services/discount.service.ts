@@ -293,6 +293,7 @@ class DiscountService {
     products: DiscountCartItemInput[],
     sellerId: string,
     buyerAccountId: string,
+    session?: import("mongoose").ClientSession,
   ) {
     if (!products.length) {
       throw new BadRequestError("Products cannot be empty");
@@ -318,12 +319,13 @@ class DiscountService {
     const productObjectIds = products.map((product) => new Types.ObjectId(product.productId));
 
     // 1. Get discount
-    const discount = await DiscountModel.findOne({
+    const discountQuery = DiscountModel.findOne({
       _id: discountObjectId,
       discount_sellerId: sellerObjectId,
       is_deleted: false,
-    })
-      .select({
+    });
+    if (session) discountQuery.session(session);
+    const discount = await discountQuery.select({
         discount_type: 1,
         discount_value: 1,
         discount_minimum_purchase: 1,
@@ -374,15 +376,16 @@ class DiscountService {
     }
 
     // 3. Get products
-    const productsData = await ProductModel.find({
+    const productsQuery = ProductModel.find({
       _id: {
         $in: productObjectIds,
       },
 
       // Make sure all products belong to this seller.
       product_seller: sellerObjectId,
-    })
-      .select({
+    });
+    if (session) productsQuery.session(session);
+    const productsData = await productsQuery.select({
         _id: 1,
         product_price: 1,
       })
