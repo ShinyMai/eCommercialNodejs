@@ -4,9 +4,13 @@ interface PaginationMetadata {
   total?: number;
 }
 
+/** Extra counts about the whole result set, beyond the current page (e.g. total comments). */
+type SummaryMetadata = Record<string, number>;
+
 interface ApiMetadata<T> {
   items: T;
   pagination?: PaginationMetadata;
+  summary?: SummaryMetadata;
 }
 
 interface ApiResponse<T> {
@@ -22,6 +26,7 @@ interface ApiResponsePayload<T> {
   message: string;
   items: T;
   pagination?: PaginationMetadata;
+  summary?: SummaryMetadata;
   requestId?: string;
 }
 
@@ -32,6 +37,7 @@ const createApiResponse = <T>({
   message,
   items,
   pagination,
+  summary,
   requestId,
 }: ApiResponsePayload<T>): ApiResponse<T> => ({
   statusCode,
@@ -39,6 +45,7 @@ const createApiResponse = <T>({
   metadata: {
     items,
     ...(pagination ? { pagination } : {}),
+    ...(summary ? { summary } : {}),
   },
   requestId,
   timestamp: new Date().toISOString(),
@@ -51,4 +58,5 @@ export type {
   ApiResponse,
   ApiResponsePayload,
   PaginationMetadata,
+  SummaryMetadata,
 };

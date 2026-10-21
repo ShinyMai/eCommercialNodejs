@@ -4,6 +4,7 @@ import {
   createApiResponse,
   type ApiResponse,
   type PaginationMetadata,
+  type SummaryMetadata,
 } from "#/core/api.response.js";
 import { getRequestId } from "#/helpers/request.context.js";
 import type { Response } from "express";
@@ -13,6 +14,7 @@ interface SuccessPayload<T> {
   statusCode?: number;
   items: T;
   pagination?: PaginationMetadata;
+  summary?: SummaryMetadata;
 }
 
 class SuccessResponse {
@@ -23,6 +25,7 @@ class SuccessResponse {
       statusCode = statusCodes.OK,
       items,
       pagination,
+      summary,
     }: SuccessPayload<T>,
   ): Response<ApiResponse<T>> {
     const response = createApiResponse({
@@ -30,6 +33,7 @@ class SuccessResponse {
       message: message || reasonPhrases.OK,
       items,
       pagination,
+      summary,
       requestId: getRequestId(),
     });
 

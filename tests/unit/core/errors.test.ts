@@ -47,10 +47,13 @@ test("unknown errors stay system errors", () => {
   assert.equal(normalizeError(bug), bug);
 });
 
-test("api response omits pagination unless provided", () => {
+test("api response omits pagination and summary unless provided", () => {
   const plain = createApiResponse({ statusCode: 200, message: "ok", items: [1] });
   assert.deepEqual(plain.metadata, { items: [1] });
 
   const paged = createApiResponse({ statusCode: 200, message: "ok", items: [], pagination: { page: 2, limit: 10 } });
   assert.deepEqual(paged.metadata.pagination, { page: 2, limit: 10 });
+
+  const summarized = createApiResponse({ statusCode: 200, message: "ok", items: [], summary: { total_comments: 3 } });
+  assert.deepEqual(summarized.metadata, { items: [], summary: { total_comments: 3 } });
 });
