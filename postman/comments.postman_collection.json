@@ -1,0 +1,656 @@
+{
+  "info": {
+    "name": "eCommerce - Comments",
+    "description": "Test nested-set comment APIs. Every request sends Authorization: Bearer {{buyerToken}} (collection auth) unless it sets its own. Paste a fresh access token into buyerToken, or run \"1. Auth\" after npm run db:seed. Comment ids are stored in collection variables automatically.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:3052/v1/api"
+    },
+    {
+      "key": "productId",
+      "value": "66f300000000000000000001",
+      "description": "Seeded phone product"
+    },
+    {
+      "key": "password",
+      "value": "ChangeMe123!",
+      "description": "Seed default (SEED_DEFAULT_PASSWORD)"
+    },
+    {
+      "key": "buyerToken",
+      "value": "",
+      "description": "Access token used by every request (collection auth). Expires after 15 minutes: log in again and paste the new one."
+    },
+    {
+      "key": "sellerToken",
+      "value": ""
+    },
+    {
+      "key": "adminToken",
+      "value": ""
+    },
+    {
+      "key": "rootId",
+      "value": ""
+    },
+    {
+      "key": "replyId",
+      "value": ""
+    },
+    {
+      "key": "nestedReplyId",
+      "value": ""
+    },
+    {
+      "key": "secondRootId",
+      "value": ""
+    }
+  ],
+  "auth": {
+    "type": "bearer",
+    "bearer": [
+      {
+        "key": "token",
+        "value": "{{buyerToken}}",
+        "type": "string"
+      }
+    ]
+  },
+  "event": [
+    {
+      "listen": "test",
+      "script": {
+        "type": "text/javascript",
+        "exec": [
+          "pm.test('responds with JSON', () => pm.response.to.be.json);"
+        ]
+      }
+    }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Login buyer",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('buyerToken', pm.response.json().metadata.items.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"buyer@example.com\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login seller",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('sellerToken', pm.response.json().metadata.items.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"seller@example.com\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Login admin",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.collectionVariables.set('adminToken', pm.response.json().metadata.items.accessToken);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/auth/login",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"email\": \"admin@example.com\",\n  \"password\": \"{{password}}\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Create comments",
+      "item": [
+        {
+          "name": "Create root comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const c = pm.response.json().metadata.items;",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('root has no parent and right = left + 1', () => {",
+                  "  pm.expect(c.comment_parent).to.eql(null);",
+                  "  pm.expect(c.comment_right).to.eql(c.comment_left + 1);",
+                  "});",
+                  "pm.collectionVariables.set('rootId', c._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_content\": \"Điện thoại dùng có tốt không mọi người?\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reply to root",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const c = pm.response.json().metadata.items;",
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.test('parent is root', () => pm.expect(c.comment_parent).to.eql(pm.collectionVariables.get('rootId')));",
+                  "pm.collectionVariables.set('replyId', c._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_parent\": \"{{rootId}}\",\n  \"comment_content\": \"Pin trâu, camera ổn.\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Reply to reply (level 3)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('nestedReplyId', pm.response.json().metadata.items._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_parent\": \"{{replyId}}\",\n  \"comment_content\": \"Bạn dùng bao lâu rồi?\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Second root comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('201 Created', () => pm.response.to.have.status(201));",
+                  "pm.collectionVariables.set('secondRootId', pm.response.json().metadata.items._id);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_content\": \"Giao hàng nhanh, đóng gói kỹ.\"\n}"
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "3. Read comments",
+      "item": [
+        {
+          "name": "List product comments (roots only)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().metadata.items;",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('only root comments', () => items.forEach((c) => pm.expect(c.comment_parent).to.eql(null)));",
+                  "pm.test('first root has 2 replies', () => {",
+                  "  const root = items.find((c) => c._id === pm.collectionVariables.get('rootId'));",
+                  "  pm.expect(root.reply_count).to.eql(2);",
+                  "});",
+                  "pm.test('pagination has total roots', () => pm.expect(pm.response.json().metadata.pagination.total).to.be.at.least(2));",
+                  "pm.test('summary counts replies too', () => pm.expect(pm.response.json().metadata.summary.total_comments).to.be.at.least(4));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/comments/products/{{productId}}?page=1&limit=20",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "products",
+                "{{productId}}"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "20"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Load more replies (one level)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().metadata.items;",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('only direct children', () => {",
+                  "  pm.expect(items).to.have.lengthOf(1);",
+                  "  pm.expect(items[0]._id).to.eql(pm.collectionVariables.get('replyId'));",
+                  "  pm.expect(items[0].reply_count).to.eql(1);",
+                  "});",
+                  "pm.test('pagination total = direct replies', () => pm.expect(pm.response.json().metadata.pagination.total).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": {
+              "raw": "{{baseUrl}}/comments/{{rootId}}/replies?page=1&limit=10",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "comments",
+                "{{rootId}}",
+                "replies"
+              ],
+              "query": [
+                {
+                  "key": "page",
+                  "value": "1"
+                },
+                {
+                  "key": "limit",
+                  "value": "10"
+                }
+              ]
+            }
+          }
+        },
+        {
+          "name": "Get full thread (nested)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const root = pm.response.json().metadata.items;",
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('tree is root > reply > nested reply', () => {",
+                  "  pm.expect(root._id).to.eql(pm.collectionVariables.get('rootId'));",
+                  "  pm.expect(root.replies[0]._id).to.eql(pm.collectionVariables.get('replyId'));",
+                  "  pm.expect(root.replies[0].replies[0]._id).to.eql(pm.collectionVariables.get('nestedReplyId'));",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/comments/{{rootId}}/thread"
+          }
+        }
+      ]
+    },
+    {
+      "name": "4. Error cases",
+      "item": [
+        {
+          "name": "Create without token → 401",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('401', () => pm.response.to.have.status(401));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_content\": \"No auth\"\n}"
+            },
+            "auth": {
+              "type": "noauth"
+            }
+          }
+        },
+        {
+          "name": "Empty content → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"{{productId}}\",\n  \"comment_content\": \"   \"\n}"
+            }
+          }
+        },
+        {
+          "name": "Parent from another product → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "url": "{{baseUrl}}/comments",
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"comment_product\": \"66f300000000000000000002\",\n  \"comment_parent\": \"{{rootId}}\",\n  \"comment_content\": \"Wrong product\"\n}"
+            }
+          }
+        },
+        {
+          "name": "Invalid comment id → 400",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('400', () => pm.response.to.have.status(400));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/comments/not-an-id/thread"
+          }
+        },
+        {
+          "name": "Delete someone else's comment → 403",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('403', () => pm.response.to.have.status(403));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/comments/{{rootId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{sellerToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Delete comments",
+      "item": [
+        {
+          "name": "Author deletes root (cascades to replies)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('root + 2 replies deleted', () => pm.expect(pm.response.json().metadata.items.deleted_count).to.eql(3));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/comments/{{rootId}}"
+          }
+        },
+        {
+          "name": "Deleted reply is gone → 404",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('404', () => pm.response.to.have.status(404));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/comments/{{nestedReplyId}}/thread"
+          }
+        },
+        {
+          "name": "Remaining root shifted back (left/right closed)",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const items = pm.response.json().metadata.items;",
+                  "const second = items.find((c) => c._id === pm.collectionVariables.get('secondRootId'));",
+                  "pm.test('second root still listed with right = left + 1', () => {",
+                  "  pm.expect(second).to.exist;",
+                  "  pm.expect(second.comment_right).to.eql(second.comment_left + 1);",
+                  "});"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "url": "{{baseUrl}}/comments/products/{{productId}}"
+          }
+        },
+        {
+          "name": "Admin deletes any comment",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('200 OK', () => pm.response.to.have.status(200));",
+                  "pm.test('1 deleted', () => pm.expect(pm.response.json().metadata.items.deleted_count).to.eql(1));"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "DELETE",
+            "url": "{{baseUrl}}/comments/{{secondRootId}}",
+            "auth": {
+              "type": "bearer",
+              "bearer": [
+                {
+                  "key": "token",
+                  "value": "{{adminToken}}",
+                  "type": "string"
+                }
+              ]
+            }
+          }
+        }
+      ]
+    }
+  ]
+}

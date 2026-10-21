@@ -7,6 +7,7 @@ import checkoutRouter from "#/routes/checkout.route.js";
 import discountRouter from "#/routes/discount.route.js";
 import orderRouter from "#/routes/order.route.js";
 import productRouter from "#/routes/product.route.js";
+import commentRouter from "#/routes/comment.route.js";
 
 const router = Router();
 
@@ -16,6 +17,7 @@ router.use("/auth", authRouter);
 router.use("/products", productRouter);
 router.use("/discounts", discountRouter);
 router.use("/accounts", accountRouter);
+router.use("/comments", commentRouter);
 router.use("/cart", cartRouter);
 router.use("/checkout", checkoutRouter);
 router.use("/orders", orderRouter);
