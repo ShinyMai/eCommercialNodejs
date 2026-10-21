@@ -1,4 +1,4 @@
-import mongoose, { Types, type ClientSession } from "mongoose";
+import { Types, type ClientSession } from "mongoose";
 import { ConflictRequestError, NotFoundError } from "#/core/error.response.js";
 import { OrderModel } from "#/models/order.model.js";
 import { countActiveSellers } from "#/repositories/account.repo.js";
@@ -12,7 +12,7 @@ import { findOrderByRequestId } from "#/repositories/order.repo.js";
 import { countPurchasableProducts } from "#/repositories/product.repo.js";
 import CheckoutService from "#/services/checkout.service.js";
 import { withLocks } from "#/services/redis.service.js";
-import { isDuplicateKeyError, TRANSACTION_OPTIONS } from "#/utils/mongo.js";
+import { isDuplicateKeyError, runInTransaction } from "#/utils/mongo.js";
 import { validateIdString } from "#/utils/validation.js";
 import type { ReviewCheckoutPayload } from "#/validators/checkout.validator.js";
 import { validateCreateOrderPayload } from "#/validators/order.validator.js";
@@ -71,15 +71,6 @@ const assertValidTotals = ({ checkout_order, checkout_summary }: CheckoutReview)
   }
   if (checkout_summary.some((shop) => shop.items.some((item) => isInvalidAmount(item.price)))) {
     throw new ConflictRequestError("Invalid product price");
-  }
-};
-
-const runInTransaction = async <T>(work: (session: ClientSession) => Promise<T>): Promise<T> => {
-  const session = await mongoose.startSession();
-  try {
-    return await session.withTransaction(() => work(session), TRANSACTION_OPTIONS);
-  } finally {
-    await session.endSession();
   }
 };
 

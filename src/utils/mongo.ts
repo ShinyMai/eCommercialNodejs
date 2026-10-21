@@ -1,4 +1,4 @@
-import type { ClientSession } from "mongoose";
+import mongoose, { type ClientSession } from "mongoose";
 
 type TransactionOptions = NonNullable<Parameters<ClientSession["withTransaction"]>[1]>;
 
@@ -6,6 +6,16 @@ type TransactionOptions = NonNullable<Parameters<ClientSession["withTransaction"
 export const TRANSACTION_OPTIONS: TransactionOptions = {
   readConcern: { level: "snapshot" },
   writeConcern: { w: "majority" },
+};
+
+/** Runs `work` in a transaction with the shared settings; `withTransaction` retries transient write conflicts. */
+export const runInTransaction = async <T>(work: (session: ClientSession) => Promise<T>): Promise<T> => {
+  const session = await mongoose.startSession();
+  try {
+    return await session.withTransaction(() => work(session), TRANSACTION_OPTIONS);
+  } finally {
+    await session.endSession();
+  }
 };
 
 export const isDuplicateKeyError = (error: unknown): boolean =>
