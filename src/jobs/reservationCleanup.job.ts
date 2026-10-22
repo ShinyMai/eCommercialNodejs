@@ -1,6 +1,7 @@
 import log from "#/helpers/logger.js";
 import { expireInventoryReservations } from "#/repositories/inventory.repo.js";
 import { expirePendingOrders } from "#/repositories/order.repo.js";
+import NotificationService from "#/services/notification.service.js";
 
 const CLEANUP_INTERVAL_MS = 30_000;
 
@@ -11,8 +12,11 @@ export const startReservationCleanup = () => {
 
   const cleanup = async () => {
     const count = await expireInventoryReservations();
-    await expirePendingOrders();
+    const expiredOrders = await expirePendingOrders();
     if (count) log.info("Expired inventory reservations released", { count });
+    await NotificationService.notify(
+      expiredOrders.map((order) => ({ type: "order_expired", to: order.accountId, data: { orderId: String(order._id) } })),
+    );
   };
 
   const run = () => {

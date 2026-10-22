@@ -18,20 +18,27 @@ import {
   shiftPositionsFrom,
   type CommentPosition,
 } from "#/repositories/comment.repo.js";
+import NotificationService from "#/services/notification.service.js";
 import { runInTransaction } from "#/utils/mongo.js";
 import { validateIdString } from "#/utils/validation.js";
 import { validateCreateCommentPayload, type CommentPayload } from "#/validators/comment.validator.js";
 
 type CommentNode<T> = T & { replies: CommentNode<T>[] };
 
-const resolveLeftPosition = async (payload: CommentPayload, session: ClientSession): Promise<number> => {
-  if (!payload.comment_parent) return (await findMaxRight(payload.comment_product, session)) + 1;
+/** Also returns the parent's author so the caller can notify them about the reply. */
+const resolveLeftPosition = async (
+  payload: CommentPayload,
+  session: ClientSession,
+): Promise<{ left: number; parentAuthor: string | null }> => {
+  if (!payload.comment_parent) {
+    return { left: (await findMaxRight(payload.comment_product, session)) + 1, parentAuthor: null };
+  }
 
   const parent = await findActiveComment(payload.comment_parent, payload.comment_product, session);
   if (!parent) throw new NotFoundError("Parent comment not found");
 
   await shiftPositionsFrom(payload.comment_product, parent.comment_right, 2, session);
-  return parent.comment_right;
+  return { left: parent.comment_right, parentAuthor: String(parent.comment_account) };
 };
 
 /** Counts the number of descendants of a comment. */
@@ -66,10 +73,28 @@ class CommentService {
   static async createComment(value: unknown, authenticatedAccountId: string) {
     const payload = validateCreateCommentPayload(value, authenticatedAccountId);
 
-    return runInTransaction(async (session) => {
-      const left = await resolveLeftPosition(payload, session);
-      return insertComment({ ...payload, comment_left: left, comment_right: left + 1 }, session);
+    const { comment, parentAuthor } = await runInTransaction(async (session) => {
+      const { left, parentAuthor } = await resolveLeftPosition(payload, session);
+      const comment = await insertComment({ ...payload, comment_left: left, comment_right: left + 1 }, session);
+      return { comment, parentAuthor };
     });
+
+    // Nobody is notified about replying to their own comment.
+    if (parentAuthor && parentAuthor !== payload.comment_account) {
+      await NotificationService.notify([
+        {
+          type: "comment_reply",
+          to: parentAuthor,
+          sender: payload.comment_account,
+          data: {
+            productId: payload.comment_product,
+            commentId: String(comment._id),
+            parentCommentId: payload.comment_parent,
+          },
+        },
+      ]);
+    }
+    return comment;
   }
 
   static async deleteComment(commentId: string, auth: { accountId: string; role: AccountRole }) {

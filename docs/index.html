@@ -272,6 +272,8 @@ flowchart LR
 | [5. Giỏ hàng](#flow-cart) | Thêm/sửa/xoá, kiểm tra tồn kho, ghi đồng thời |
 | [6. Checkout review](#flow-checkout) | Tính giá, giảm giá, phí ship |
 | [7. Đơn hàng & giữ hàng](#flow-order) | Idempotency, Redis lock, transaction, reservation, hết hạn |
+| [8. Thông báo](#flow-notification) | Push (có người nhận) và pull (broadcast), inbox, đã đọc, SSE realtime |
+| [9. Bình luận sản phẩm](#flow-comment) | Cây nested set, thêm/xoá có dời left/right, đọc thread, thông báo reply |
 | [API reference](#api) | Mọi endpoint kèm request/response mẫu và mã lỗi |
 
 
@@ -284,6 +286,8 @@ flowchart LR
 | Mã giảm giá theo seller | Phí ship thật, địa chỉ giao hàng, thuế |
 | Giỏ hàng, checkout review | Biến thể sản phẩm, giỏ hàng cho khách vãng lai |
 | Đơn `pending_payment`, giữ hàng, tự hết hạn, huỷ đơn | Integration test với MongoDB replica set/Redis thật |
+| Thông báo push/pull, inbox, SSE realtime | Outbox/message queue cho thông báo, email, push mobile |
+| Bình luận nhiều cấp (nested set), thông báo reply | Sửa comment, like, đánh giá sao |
 </script>
 <script type="text/markdown" data-id="architecture" data-title="Kiến trúc" data-group="doc">
 # Kiến trúc
@@ -301,8 +305,10 @@ flowchart TD
   S --> V
   S --> RP[repositories/<br/>truy vấn MongoDB dùng lại được]
   S --> RS[redis.service<br/>distributed lock]
+  S --> PS[redisPubSub.service<br/>pub/sub cho thông báo realtime]
   RP --> MD[models/<br/>Mongoose schema]
   J[jobs/<br/>cleanup · DB monitor] --> RP
+  J --> S
 ```
 
 | Thư mục | Trách nhiệm | Không được làm |
@@ -364,7 +370,10 @@ Mọi response, kể cả lỗi, đều có cùng một cấu trúc:
 ```
 
 - `metadata.items`: dữ liệu trả về; là `null` khi lỗi.
-- `metadata.pagination`: chỉ có ở API danh sách. `total` chỉ có ở `GET /accounts`.
+- `metadata.pagination`: chỉ có ở API danh sách. `total` chỉ có ở `GET /accounts` và các
+  API danh sách comment.
+- `metadata.summary`: số liệu thêm về cả tập kết quả, ví dụ `total_comments` ở
+  `GET /comments/products/:productId`.
 - Header `x-request-id` luôn trùng với `requestId` trong body.
 
 ## Xử lý lỗi
@@ -397,7 +406,7 @@ flowchart TD
 
 | Job | Chu kỳ | Việc làm |
 | --- | --- | --- |
-| `reservationCleanup.job` | Chạy ngay khi khởi động, sau đó mỗi 30 giây | Hết hạn tối đa 100 inventory có reservation quá hạn → hoàn kho; chuyển đơn `pending_payment` quá hạn sang `expired` |
+| `reservationCleanup.job` | Chạy ngay khi khởi động, sau đó mỗi 30 giây | Hết hạn tối đa 100 inventory có reservation quá hạn → hoàn kho; chuyển từng đơn `pending_payment` quá hạn sang `expired` (batch 100, lặp tới khi hết) và gửi `order_expired` cho người mua |
 | `databaseMonitor.job` | `DB_MONITOR_INTERVAL_MS` (mặc định 5 phút) | Log số kết nối Mongo và RAM; cảnh báo khi kết nối vượt `số CPU × 5` |
 
 Khi nhận `SIGINT`/`SIGTERM`: ngừng nhận request → chờ job cleanup đang chạy xong → đóng
@@ -407,8 +416,11 @@ MongoDB và Redis → thoát.
 
 - **MongoDB phải là replica set hoặc sharded cluster.** Tạo và huỷ đơn dùng transaction;
   MongoDB standalone không hỗ trợ transaction.
-- **Redis** (`REDIS_URL`) dùng cho distributed lock khi giữ hàng. Server không khởi động
-  nếu không kết nối được Redis.
+- **Redis** (`REDIS_URL`) dùng cho distributed lock khi giữ hàng, và pub/sub để đẩy thông
+  báo realtime tới đúng instance đang giữ kết nối SSE. Server không khởi động nếu không kết
+  nối được Redis. Subscriber pub/sub là kết nối riêng, chỉ mở ở lần subscribe đầu tiên.
+- **Reverse proxy** đứng trước `GET /notifications/stream` phải tắt buffering và cho phép
+  kết nối dài (server đã gửi header `X-Accel-Buffering: no` cho nginx).
 - Rate limiter lưu trong memory của từng process. Khi chạy nhiều instance, hãy chuyển
   sang store dùng chung hoặc giới hạn ở API gateway.
 </script>
@@ -964,6 +976,7 @@ Toàn đơn (checkout_order):
 **Code:** `routes/order.route.ts` → `controllers/order.controller.ts` → `services/order.service.ts`
 · `services/redis.service.ts` · `repositories/inventory.repo.ts`, `repositories/order.repo.ts`
 · `validators/order.validator.ts` · `jobs/reservationCleanup.job.ts`
+· `services/notification.service.ts`
 
 Mọi endpoint yêu cầu buyer trở lên. Chủ đơn luôn là `req.auth.accountId`.
 
@@ -1025,6 +1038,7 @@ sequenceDiagram
   S->>DB: insert Order (pending_payment, snapshot giá)
   S->>DB: commit
   S->>R: nhả lock (Lua: chỉ xoá nếu token khớp), theo thứ tự ngược lại
+  S->>S: chỉ khi đơn do chính request này tạo:<br/>notify order_placed (buyer) + shop_new_order (mỗi shop)
   S-->>C: 201 order (không có requestHash)
 ```
 
@@ -1129,8 +1143,12 @@ Các reservation đã kết thúc được **giữ lại** để đảm bảo id
 flowchart LR
   T[Khởi động server<br/>+ mỗi 30 giây] --> F[Tìm ≤ 100 inventory có reservation<br/>active và expiresAt ≤ now]
   F --> E[finishReservation expired<br/>hoàn kho từng reservation]
-  E --> O[Đơn pending_payment quá hạn → expired]
+  E --> O["Đơn pending_payment quá hạn → expired<br/>từng đơn: findOneAndUpdate WHERE status=pending_payment<br/>batch 100, lặp tới khi hết"]
+  O --> N[order_expired cho người mua<br/>của đúng các đơn vừa chuyển]
 ```
+
+Mỗi đơn được chuyển bằng một câu update có điều kiện `status = pending_payment`, nên đơn bị
+huỷ đồng thời sẽ không khớp và không bị báo hai lần.
 
 `GET /orders/:id` trả `status: "expired"` ngay khi đơn quá hạn, kể cả khi job chưa kịp cập
 nhật DB.
@@ -1145,6 +1163,23 @@ Chạy trong transaction:
 4. Huỷ reservation của từng sản phẩm. Chỉ cần một reservation đã `confirmed` là toàn bộ bị
    rollback (409), không hoàn kho một phần.
 5. Lưu `status` và `cancelledAt`.
+6. Sau khi commit: nếu đơn vừa rời `pending_payment` thì gửi `order_cancelled` hoặc
+   `order_expired` cho người mua.
+
+## Thông báo của đơn hàng
+
+Gửi **sau khi transaction commit**, qua `NotificationService.notify` (xem
+[8. Thông báo](#flow-notification)). Lỗi khi gửi chỉ được ghi log, không làm hỏng đơn.
+
+| Khi | Loại | Người nhận |
+| --- | --- | --- |
+| Tạo đơn mới (không tính retry idempotent) | `order_placed` | Người mua |
+| Tạo đơn mới | `shop_new_order` | Mỗi shop trong đơn, một lần |
+| Huỷ đơn còn hạn | `order_cancelled` | Người mua |
+| Huỷ đơn đã quá hạn nhưng còn `pending_payment` | `order_expired` | Người mua |
+| Job chuyển đơn sang `expired` | `order_expired` | Người mua |
+
+Huỷ một đơn mà job **đã** chuyển sang `expired` thì không gửi lại, vì job đã báo rồi.
 
 ## Giới hạn hiện tại
 
@@ -1154,6 +1189,277 @@ Chạy trong transaction:
 - Phí ship tạm tính 5 / dòng sản phẩm. Chưa có địa chỉ, thuế, chính sách tiền tệ/làm tròn.
 - Bắt buộc MongoDB replica set. Test hiện dùng stub, chưa có integration test với
   replica set và Redis thật.
+</script>
+<script type="text/markdown" data-id="flow-notification" data-title="8. Thông báo" data-group="flow">
+# 8. Thông báo (notification)
+
+**Code:** `routes/notification.route.ts` → `controllers/notification.controller.ts` →
+`services/notification.service.ts` · `repositories/notification.repo.ts`
+· `validators/notification.validator.ts` · `services/redisPubSub.service.ts`
+· `models/notification.model.ts`, `models/broadcastNotification.model.ts`, `models/notificationState.model.ts`
+
+## Hai cơ chế: push và pull
+
+| | **Push**: có người nhận (`noti_to`) | **Pull**: không có người nhận (broadcast) |
+| --- | --- | --- |
+| Ví dụ | Đơn đã đặt/huỷ/hết hạn, shop có đơn mới, có người trả lời comment | Khuyến mãi toàn sàn, thông báo hệ thống |
+| Lưu trữ | `notifications`: **một document cho mỗi người nhận** (fan-out on write) | `broadcast_notifications`: **một document cho tất cả** (fan-out on read) |
+| Ai tạo | Service nghiệp vụ, sau khi transaction commit | Admin qua `POST /notifications/broadcasts` |
+| Realtime | Đẩy **nguyên nội dung** qua Redis `noti:account:{id}` → SSE | Chỉ đẩy **tín hiệu** `{ id, audience }` qua `noti:broadcast`; client tự gọi lại inbox |
+| Trạng thái đã đọc | `noti_read_at` trên chính document | `notification_states.broadcast_seen_at` + `broadcast_reads` |
+| Hết hạn | TTL 90 ngày theo `createdAt` | TTL theo `expire_at` (nếu có) |
+
+```mermaid
+flowchart LR
+  subgraph PUSH[Push: có noti_to]
+    BS[order / comment service<br/>reservationCleanup job] -->|sau commit| NS[NotificationService.notify]
+    NS --> N1[(notifications)]
+    NS --> P1[Redis noti:account:id]
+  end
+  subgraph PULL[Pull: broadcast]
+    AD[Admin POST /notifications/broadcasts] --> B1[(broadcast_notifications)]
+    AD -->|nếu publish_at ≤ now| P2[Redis noti:broadcast<br/>chỉ id + audience]
+  end
+  P1 --> G[SSE gateway<br/>GET /notifications/stream]
+  P2 --> G
+  G -->|event notification / broadcast| CL[Client]
+  CL -->|GET /notifications| IN[Inbox: merge 2 nguồn]
+  N1 --> IN
+  B1 --> IN
+```
+
+## Loại thông báo
+
+| Push (`noti_type`) | Gửi khi | Người nhận | `noti_data` |
+| --- | --- | --- | --- |
+| `order_placed` | Tạo đơn mới | Người mua | `orderId` |
+| `shop_new_order` | Tạo đơn mới | Mỗi shop trong đơn | `orderId` |
+| `order_cancelled` | Huỷ đơn còn hạn | Người mua | `orderId` |
+| `order_expired` | Huỷ đơn quá hạn, hoặc job hết hạn đơn | Người mua | `orderId` |
+| `comment_reply` | Trả lời một comment (không gửi khi tự trả lời mình), xem [9. Bình luận](#flow-comment) | Tác giả comment cha | `productId`, `commentId`, `parentCommentId` |
+| `product_back_in_stock` | Chưa gắn vào luồng nào | | `productId`, `productName` |
+| `promotion` | Chưa gắn vào luồng nào | | `title`, `content` |
+
+Tiêu đề và nội dung push được render từ template theo `noti_type` (tiếng Anh). Broadcast có
+loại `promotion` hoặc `system`, tiêu đề và nội dung do admin nhập.
+
+## Gửi push từ nghiệp vụ
+
+```mermaid
+sequenceDiagram
+  autonumber
+  participant S as OrderService / CommentService / job
+  participant DB as MongoDB
+  participant N as NotificationService
+  participant R as Redis pub/sub
+  participant G as SSE (mọi instance)
+
+  S->>DB: transaction nghiệp vụ
+  DB-->>S: commit
+  S->>N: notify([{ type, to, sender?, data }])
+  par mỗi input
+    N->>DB: insert notification (title/content từ template)
+    N->>R: PUBLISH noti:account:{to}
+    R-->>G: instance đang giữ kết nối của {to} nhận được
+  end
+  Note over N: Lỗi được log, không ném ra. Đơn hàng/comment vẫn thành công.
+```
+
+- **Không có thông báo "ma":** chỉ gửi sau khi commit, nên transaction rollback thì không ai
+  nhận gì.
+- **Best effort:** Redis lỗi thì thông báo vẫn được lưu vào inbox, chỉ mất phần realtime.
+- **Chưa có outbox:** nếu process chết ngay sau commit và trước khi gửi, thông báo đó bị mất.
+
+## Inbox — merge hai nguồn
+
+`GET /notifications?cursor=&limit=` phân trang theo **cursor thời gian**, không dùng
+`page/skip` vì `skip` sai khi gộp hai collection.
+
+```mermaid
+flowchart TD
+  Q[cursor = ISO time, mặc định now<br/>limit ≤ 100] --> A[notifications<br/>noti_to = me, createdAt < cursor<br/>lấy limit]
+  Q --> B[broadcast_notifications<br/>publish_at ≤ now và < cursor<br/>chưa hết hạn, audience rỗng hoặc chứa role<br/>lấy limit]
+  Q --> C[broadcast_seen_at của tôi]
+  B --> D[broadcast_reads cho các broadcast<br/>publish_at > seen_at]
+  A --> M[Gộp, sắp xếp mới → cũ, cắt còn limit]
+  B --> M
+  C --> M
+  D --> M
+  M --> R["items + next_cursor<br/>(created_at của item cuối, null nếu trang chưa đầy)"]
+```
+
+Broadcast được coi là **đã đọc** khi `publish_at ≤ broadcast_seen_at` hoặc có bản ghi trong
+`broadcast_reads`.
+
+## Đếm chưa đọc và đánh dấu đã đọc
+
+| Thao tác | Push | Broadcast |
+| --- | --- | --- |
+| Chưa đọc | `noti_read_at = null` | `publish_at > seen_at`, còn hiển thị, chưa có receipt (tối đa 500) |
+| `PATCH /:id/read` | Đặt `noti_read_at`, đọc lại không đổi thời điểm cũ | Upsert `broadcast_reads` (nếu broadcast hiển thị với role của mình) |
+| `PATCH /read-all` | `noti_read_at = now` cho mọi tin chưa đọc | `broadcast_seen_at = now` (một lần ghi, không phụ thuộc số broadcast) |
+
+`PATCH /:id/read` thử push trước, không thấy thì tìm broadcast. Không thấy cả hai, hoặc là
+thông báo của người khác, thì trả 404.
+
+## Realtime — Server-Sent Events
+
+`GET /notifications/stream` giữ kết nối mở và gửi các event:
+
+| Event | Khi nào | `data` |
+| --- | --- | --- |
+| `ready` | Ngay khi kết nối | `{ total, personal, broadcast }` (số chưa đọc) |
+| `notification` | Có push mới cho tôi | Một inbox item |
+| `broadcast` | Admin phát broadcast hiển thị với role của tôi | `{ id, audience }` (client gọi lại inbox) |
+| `: ping` | Mỗi 25 giây | Comment giữ kết nối |
+
+```text
+event: notification
+data: {"id":"…","source":"personal","type":"order_placed","title":"Order placed",…}
+```
+
+- Subscribe Redis **trước** khi gửi header, nên Redis lỗi vẫn trả JSON error bình thường.
+- Header `Cache-Control: no-cache, no-transform` để `compression()` bỏ qua, không buffer stream.
+- Đóng kết nối thì huỷ subscribe. `redisPubSub` dùng một subscriber cho mỗi process, chia
+  handler theo channel, và chỉ kết nối Redis ở lần subscribe đầu tiên.
+- **Xác thực:** `EventSource` của trình duyệt không gửi được header `Authorization`. Hãy dùng
+  SSE qua `fetch` (ví dụ `@microsoft/fetch-event-source`) để gửi Bearer token.
+- Chưa replay qua `Last-Event-ID`. Khi kết nối lại, dùng số trong `ready` và gọi lại inbox.
+
+## Giới hạn hiện tại
+
+- Push ghi trực tiếp, chưa qua outbox hay message queue. Chưa có retry hoặc DLQ.
+- Chưa có email, push mobile, hay cài đặt bật/tắt theo loại thông báo.
+- `comment_reply` chưa hiện tên người trả lời ("Someone replied to your comment.").
+- Broadcast hẹn giờ (`publish_at` ở tương lai) không phát tín hiệu realtime khi tới giờ. Nó
+  chỉ xuất hiện khi client gọi lại inbox.
+- Cursor so sánh theo mili-giây. Hai item cùng mili-giây ở ranh giới trang có thể bị bỏ sót.
+</script>
+<script type="text/markdown" data-id="flow-comment" data-title="9. Bình luận sản phẩm" data-group="flow">
+# 9. Bình luận sản phẩm (nested set)
+
+**Code:** `routes/comment.route.ts` → `controllers/comment.controller.ts` →
+`services/comment.service.ts` · `repositories/comment.repo.ts`
+· `validators/comment.validator.ts` · `models/comment.model.ts`
+· `postman/comments.postman_collection.json`
+
+Đọc comment là công khai. Tạo và xoá yêu cầu buyer trở lên. Tác giả luôn là
+`req.auth.accountId`, không lấy từ body.
+
+## Mô hình nested set
+
+Mỗi comment có hai số `comment_left` và `comment_right`. Comment cha **bao trọn** khoảng
+`[left, right]` của mọi comment con, cháu. Mỗi sản phẩm là một "rừng" riêng: mọi truy vấn
+đều lọc theo `comment_product` trước.
+
+```mermaid
+flowchart TD
+  A["Áo đẹp không?<br/>1 · 8"] --> B["Đẹp lắm<br/>2 · 5"]
+  A --> C["Size M vừa không?<br/>6 · 7"]
+  B --> D["+1<br/>3 · 4"]
+  E["Giao nhanh<br/>9 · 10"]
+```
+
+| Câu hỏi | Cách trả lời bằng left/right |
+| --- | --- |
+| Toàn bộ thread của X | `left ∈ [X.left, X.right]`, sắp theo `left` tăng dần (thứ tự pre-order) |
+| Số reply mọi cấp của X | `(X.right − X.left − 1) / 2`, không cần query |
+| Comment gốc mới nhất | `comment_parent = null`, sắp theo `left` giảm dần |
+| Reply trực tiếp, cũ trước | `comment_parent = X`, sắp theo `left` tăng dần |
+
+Đổi lại, **ghi tốn hơn đọc**: thêm hoặc xoá phải dời left/right của các comment phía sau
+trong cùng sản phẩm.
+
+Index: `(comment_product, comment_left, comment_right)` cho truy vấn khoảng, và
+`(comment_parent, comment_left)` cho "xem thêm reply".
+
+## Tạo comment — `POST /comments`
+
+```json
+{
+  "comment_product": "6650a1f0c2a4b81234567804",
+  "comment_content": "Size M vừa không?",
+  "comment_parent": "6650a1f0c2a4b81234567810"
+}
+```
+
+`comment_parent` bỏ trống hoặc `null` là comment gốc. Nội dung được trim và tối đa 2000
+ký tự.
+
+```mermaid
+flowchart TD
+  IN[payload + accountId từ session] --> V{Hợp lệ?}
+  V -->|không| E400[400]
+  V --> TX[Bắt đầu transaction]
+  TX --> P{Có comment_parent?}
+  P -->|không| R["left = maxRight của sản phẩm + 1<br/>(0 nếu chưa có comment)"]
+  P -->|có| F{Parent tồn tại, chưa xoá,<br/>cùng sản phẩm?}
+  F -->|không| E404[404 Parent comment not found]
+  F -->|có| S["Dời +2 mọi right ≥ parent.right<br/>Dời +2 mọi left ≥ parent.right<br/>left = parent.right cũ"]
+  R --> I[Insert: left, right = left + 1]
+  S --> I
+  I --> CM[Commit]
+  CM --> N{Là reply và tác giả parent<br/>khác người reply?}
+  N -->|có| NT[notify comment_reply<br/>cho tác giả parent]
+  N -->|không| OK[201 comment]
+  NT --> OK
+```
+
+Ví dụ trả lời "Đẹp lắm" (2 · 5) trong cây ở trên: mọi giá trị ≥ 5 tăng thêm 2, nên "Đẹp lắm"
+thành 2 · 7, "Áo đẹp không?" thành 1 · 10, và reply mới nhận 5 · 6.
+
+Mọi bước dời và insert nằm trong **một transaction**: lỗi ở bất kỳ bước nào cũng không để
+lại khoảng hở hay chồng chéo trong left/right.
+
+## Thông báo khi có reply
+
+Gửi **sau khi commit**, qua `NotificationService.notify` (xem
+[8. Thông báo](#flow-notification)):
+
+| Field | Giá trị |
+| --- | --- |
+| `noti_type` | `comment_reply` |
+| `noti_to` | Tác giả của comment cha |
+| `noti_sender` | Người vừa reply |
+| `noti_data` | `{ productId, commentId, parentCommentId }` |
+
+- Comment gốc và tự reply vào comment của chính mình đều **không** gửi thông báo.
+- Chỉ báo cho tác giả của comment cha trực tiếp, không báo cho cả chuỗi phía trên.
+- Lỗi khi gửi chỉ được ghi log; comment vẫn được tạo.
+- Nội dung hiện là "Someone replied to your comment.", chưa có tên người reply.
+
+## Đọc comment
+
+| Endpoint | Trả về | Phân trang |
+| --- | --- | --- |
+| `GET /comments/products/:productId` | Comment gốc, mới trước, kèm `reply_count` (mọi cấp) | `page/limit`, `pagination.total` = số comment gốc, `summary.total_comments` = số comment mọi cấp |
+| `GET /comments/:id/replies` | Reply **trực tiếp** của một comment, cũ trước, kèm `reply_count` | `page/limit`, `pagination.total` = số reply trực tiếp |
+| `GET /comments/:id/thread` | Cả cây con của một comment, dạng lồng nhau `replies: [...]` | Không |
+
+Cách dựng cây cho `/thread`: lấy mọi comment trong `[left, right]` theo thứ tự `left` tăng
+dần, rồi duyệt một lượt với một stack giữ chuỗi tổ tiên hiện tại. Gặp comment có `left` lớn
+hơn `right` của đỉnh stack thì pop, vì đỉnh đó đã hết con. Comment bị đánh dấu xoá
+(`is_deleted`) không được trả về; reply của nó gắn vào tổ tiên gần nhất còn lại.
+
+## Xoá comment — `DELETE /comments/:id`
+
+Chỉ tác giả hoặc admin được xoá. Xoá **cứng** comment cùng toàn bộ reply bên dưới, trong
+một transaction:
+
+1. Tìm comment chưa xoá (không có → 404).
+2. Không phải tác giả và không phải admin → 403.
+3. `deleteMany` mọi comment có `left ≥ X.left` và `right ≤ X.right`.
+4. Đóng khoảng hở: dời `−(X.right − X.left + 1)` mọi left/right ≥ `X.right + 1`.
+5. Trả `{ deleted_count }`.
+
+## Giới hạn hiện tại
+
+- Mỗi lần thêm hoặc xoá phải cập nhật các comment phía sau trong cùng sản phẩm. Sản phẩm
+  có rất nhiều comment sẽ ghi chậm hơn. Hai request ghi cùng một sản phẩm cùng lúc sẽ va
+  chạm, và `withTransaction` thử lại.
+- Chưa có sửa comment, like, đánh giá sao, hay kiểm tra người comment đã mua hàng chưa.
+- Model có `is_deleted` nhưng chưa có luồng xoá mềm; `DELETE` là xoá cứng.
+- Chưa có giới hạn tần suất (rate limit) riêng cho tạo comment.
 </script>
 <script>
 const ID = {
@@ -1167,6 +1473,12 @@ const ID = {
   order: "6650a1f0c2a4b81234567808",
   request: "6650a1f0c2a4b81234567809",
   profile: "6650a1f0c2a4b8123456780a",
+  comment: "6650a1f0c2a4b81234567810",
+  reply: "6650a1f0c2a4b81234567811",
+  reply2: "6650a1f0c2a4b81234567812",
+  notification: "6650a1f0c2a4b8123456780c",
+  broadcast: "6650a1f0c2a4b8123456780d",
+  admin: "6650a1f0c2a4b8123456780e",
 };
 
 const AUTH_ERRORS = [
@@ -1247,6 +1559,22 @@ const order = {
   createdAt: "2026-10-07T00:00:00.000Z",
   updatedAt: "2026-10-07T00:00:00.000Z",
 };
+const comment = (id, content, left, right, parent = null, author = ID.account) => ({
+  _id: id,
+  comment_account: author,
+  comment_product: ID.product,
+  comment_content: content,
+  comment_left: left,
+  comment_right: right,
+  comment_parent: parent,
+  is_deleted: false,
+  createdAt: "2026-10-07T00:00:00.000Z",
+  updatedAt: "2026-10-07T00:00:00.000Z",
+});
+const rootComment = comment(ID.comment, "Áo đẹp không?", 1, 8);
+const replyComment = comment(ID.reply, "Đẹp lắm", 2, 5, ID.comment, ID.seller);
+const nestedReply = comment(ID.reply2, "+1", 3, 4, ID.reply);
+const COMMENT_ID_ERROR = [400, "commentId must be a valid 24-character ID string"];
 const cartDoc = {
   _id: ID.cart,
   cart_account: ID.account,
@@ -1812,6 +2140,219 @@ window.API_GROUPS = [
       },
     ],
   },
+  {
+    id: "notifications",
+    name: "Notifications",
+    flow: "flow-notification",
+    endpoints: [
+      {
+        method: "GET",
+        path: "/notifications",
+        auth: "buyer",
+        summary: "Inbox: push của mình + broadcast, mới nhất trước",
+        description:
+          "Phân trang theo cursor thời gian (không dùng <code>page</code>). Lấy trang tiếp bằng cách truyền <code>next_cursor</code> vào <code>cursor</code>; <code>next_cursor = null</code> là hết.",
+        query: [
+          ["cursor", "ISO date", "Chỉ lấy item cũ hơn thời điểm này. Mặc định: bây giờ"],
+          ["limit", "number", "Mặc định 20, tối đa 100"],
+        ],
+        message: "Notifications retrieved successfully",
+        response: {
+          notifications: [
+            {
+              id: ID.broadcast,
+              source: "broadcast",
+              type: "promotion",
+              title: "Flash sale 10.10",
+              content: "Giảm 50% toàn sàn đến hết hôm nay",
+              data: { url: "/sale/1010" },
+              sender: null,
+              created_at: "2026-10-07T00:10:00.000Z",
+              is_read: false,
+            },
+            {
+              id: ID.notification,
+              source: "personal",
+              type: "order_placed",
+              title: "Order placed",
+              content: `Your order ${ID.order} has been placed and is awaiting payment.`,
+              data: { orderId: ID.order },
+              sender: null,
+              created_at: "2026-10-07T00:00:00.000Z",
+              is_read: true,
+            },
+          ],
+          next_cursor: "2026-10-07T00:00:00.000Z",
+        },
+        errors: [[400, "cursor must be a valid date"]],
+      },
+      {
+        method: "GET",
+        path: "/notifications/unread-count",
+        auth: "buyer",
+        summary: "Số thông báo chưa đọc (cho badge)",
+        message: "Unread count retrieved successfully",
+        response: { total: 3, personal: 2, broadcast: 1 },
+      },
+      {
+        method: "GET",
+        path: "/notifications/stream",
+        auth: "buyer",
+        summary: "Server-Sent Events: nhận thông báo realtime",
+        description:
+          "Response là <code>text/event-stream</code>, không phải JSON envelope. Các event: <code>ready</code> (số chưa đọc), <code>notification</code> (inbox item), <code>broadcast</code> (<code>{ id, audience }</code>), và <code>: ping</code> mỗi 25 giây. <code>EventSource</code> không gửi được header Authorization, nên hãy dùng SSE qua <code>fetch</code>.",
+        message: "(stream) event: ready",
+        response: { total: 3, personal: 2, broadcast: 1 },
+        errors: [[500, "Redis không subscribe được (trả JSON trước khi mở stream)"]],
+      },
+      {
+        method: "PATCH",
+        path: "/notifications/read-all",
+        auth: "buyer",
+        summary: "Đánh dấu tất cả đã đọc (push + broadcast)",
+        message: "All notifications marked as read",
+        response: { personal_marked: 2, broadcast_seen_at: "2026-10-07T00:20:00.000Z" },
+      },
+      {
+        method: "PATCH",
+        path: "/notifications/:id/read",
+        auth: "buyer",
+        summary: "Đánh dấu một thông báo đã đọc",
+        description: "<code>id</code> có thể là push của mình hoặc một broadcast đang hiển thị với role của mình. Gọi lại nhiều lần vẫn an toàn.",
+        message: "Notification marked as read",
+        response: { id: ID.notification, source: "personal" },
+        errors: [
+          [400, "notificationId must be a valid 24-character ID string"],
+          [404, "Notification not found"],
+        ],
+      },
+      {
+        method: "POST",
+        path: "/notifications/broadcasts",
+        auth: "admin",
+        status: 201,
+        summary: "Phát broadcast (pull) cho mọi người hoặc theo role",
+        description:
+          "Lưu một document dùng chung. Nếu <code>publish_at</code> ≤ bây giờ thì gửi tín hiệu <code>broadcast</code> qua SSE; broadcast hẹn giờ chỉ hiện khi client gọi lại inbox sau thời điểm đó.",
+        body: {
+          noti_type: "promotion",
+          noti_title: "Flash sale 10.10",
+          noti_content: "Giảm 50% toàn sàn đến hết hôm nay",
+          noti_data: { url: "/sale/1010" },
+          noti_audience: ["buyer"],
+          expire_at: "2026-10-11T00:00:00.000Z",
+        },
+        fields: [
+          ["noti_type", "string", "promotion | system"],
+          ["noti_title", "string", "Bắt buộc, trim, ≤ 150 ký tự"],
+          ["noti_content", "string", "Bắt buộc, trim, ≤ 1000 ký tự"],
+          ["noti_data", "object", "Tuỳ chọn; chỉ key → string/number/boolean/null"],
+          ["noti_audience", "string[]", "Tuỳ chọn; buyer/seller/admin, bỏ trùng. Rỗng = mọi role"],
+          ["publish_at", "ISO date", "Tuỳ chọn, mặc định bây giờ"],
+          ["expire_at", "ISO date | null", "Tuỳ chọn, phải sau publish_at; tự xoá khi tới hạn"],
+        ],
+        message: "Broadcast notification created successfully",
+        response: {
+          _id: ID.broadcast,
+          noti_type: "promotion",
+          noti_title: "Flash sale 10.10",
+          noti_content: "Giảm 50% toàn sàn đến hết hôm nay",
+          noti_data: { url: "/sale/1010" },
+          noti_audience: ["buyer"],
+          noti_sender: ID.admin,
+          publish_at: "2026-10-07T00:10:00.000Z",
+          expire_at: "2026-10-11T00:00:00.000Z",
+          createdAt: "2026-10-07T00:10:00.000Z",
+          updatedAt: "2026-10-07T00:10:00.000Z",
+        },
+        errors: [
+          [400, "Invalid broadcast payload / noti_type must be one of: promotion, system / noti_title is required / noti_audience must be a list of: buyer, seller, admin / noti_data.<key> must be a string, number, boolean or null / publish_at must be a valid date / expire_at must be after publish_at"],
+        ],
+      },
+    ],
+  },
+  {
+    id: "comments",
+    name: "Comments",
+    flow: "flow-comment",
+    endpoints: [
+      {
+        method: "POST",
+        path: "/comments",
+        auth: "buyer",
+        status: 201,
+        summary: "Tạo comment gốc hoặc reply",
+        description:
+          "Tác giả lấy từ session. Reply được chèn vào cây nested set trong một transaction. Sau khi commit, tác giả comment cha nhận thông báo <code>comment_reply</code> (trừ khi tự reply chính mình).",
+        body: { comment_product: ID.product, comment_content: "Size M vừa không?", comment_parent: ID.comment },
+        fields: [
+          ["comment_product", "ObjectId hex", "Bắt buộc"],
+          ["comment_content", "string", "Bắt buộc, trim, ≤ 2000 ký tự"],
+          ["comment_parent", "ObjectId hex | null", "Bỏ trống hoặc null = comment gốc. Phải cùng sản phẩm và chưa bị xoá"],
+        ],
+        message: "Comment created successfully",
+        response: comment("6650a1f0c2a4b81234567813", "Size M vừa không?", 8, 9, ID.comment),
+        errors: [
+          [400, "Invalid comment payload / comment_content is required / comment_content must be at most 2000 characters / comment_product must be a valid 24-character ID string / comment_parent must be a valid 24-character ID string"],
+          [404, "Parent comment not found"],
+        ],
+      },
+      {
+        method: "GET",
+        path: "/comments/products/:productId",
+        auth: "public",
+        summary: "Comment gốc của sản phẩm, mới trước",
+        description:
+          "<code>reply_count</code> là số reply ở mọi cấp. <code>pagination.total</code> đếm comment gốc; <code>summary.total_comments</code> đếm mọi comment của sản phẩm.",
+        query: PAGINATION,
+        message: "Comments retrieved successfully",
+        response: [{ ...rootComment, reply_count: 3 }],
+        pagination: { page: 1, limit: 20, total: 2 },
+        metaSummary: { total_comments: 5 },
+        errors: [[400, "productId must be a valid 24-character ID string"]],
+      },
+      {
+        method: "GET",
+        path: "/comments/:id/replies",
+        auth: "public",
+        summary: "Reply trực tiếp của một comment (xem thêm), cũ trước",
+        query: PAGINATION,
+        message: "Replies retrieved successfully",
+        response: [
+          { ...replyComment, reply_count: 1 },
+          { ...comment("6650a1f0c2a4b81234567813", "Size M vừa không?", 6, 7, ID.comment), reply_count: 0 },
+        ],
+        pagination: { page: 1, limit: 20, total: 2 },
+        errors: [COMMENT_ID_ERROR, [404, "Comment not found"]],
+      },
+      {
+        method: "GET",
+        path: "/comments/:id/thread",
+        auth: "public",
+        summary: "Cả cây con của một comment, dạng lồng nhau",
+        description: "Không phân trang. Comment đã đánh dấu xoá bị bỏ qua; reply của nó gắn vào tổ tiên gần nhất còn lại.",
+        message: "Comment thread retrieved successfully",
+        response: {
+          ...rootComment,
+          replies: [
+            { ...replyComment, replies: [{ ...nestedReply, replies: [] }] },
+            { ...comment("6650a1f0c2a4b81234567813", "Size M vừa không?", 6, 7, ID.comment), replies: [] },
+          ],
+        },
+        errors: [COMMENT_ID_ERROR, [404, "Comment not found"]],
+      },
+      {
+        method: "DELETE",
+        path: "/comments/:id",
+        auth: "buyer",
+        summary: "Xoá comment cùng mọi reply (tác giả hoặc admin)",
+        description: "Xoá cứng cả cây con, sau đó dời left/right để đóng khoảng hở. Chạy trong một transaction.",
+        message: "Comment deleted successfully",
+        response: { deleted_count: 3 },
+        errors: [COMMENT_ID_ERROR, [403, "You can only delete your own comments"], [404, "Comment not found"]],
+      },
+    ],
+  },
 ];
 
 window.API_HELPERS = { AUTH_ERRORS, roleError };
@@ -1875,10 +2416,10 @@ window.API_HELPERS = { AUTH_ERRORS, roleError };
 
   /* ---------- API reference ---------- */
   const { AUTH_ERRORS, roleError } = window.API_HELPERS;
-  const envelope = (statusCode, message, items, pagination) => ({
+  const envelope = (statusCode, message, items, pagination, summary) => ({
     statusCode,
     message,
-    metadata: pagination ? { items, pagination } : { items },
+    metadata: { items, ...(pagination && { pagination }), ...(summary && { summary }) },
     requestId: "c0ffee00-1234-4abc-9def-0123456789ab",
     timestamp: "2026-10-07T00:00:00.000Z",
   });
@@ -1907,7 +2448,7 @@ window.API_HELPERS = { AUTH_ERRORS, roleError };
       ...(["seller", "admin"].includes(ep.auth) ? [roleError(ep.auth)] : []),
       ...(ep.errors ?? []),
     ].sort((a, b) => a[0] - b[0]);
-    const responseExample = envelope(okStatus, ep.message, ep.response ?? null, ep.pagination);
+    const responseExample = envelope(okStatus, ep.message, ep.response ?? null, ep.pagination, ep.metaSummary);
 
     let body = "";
     if (ep.description) body += `<p>${ep.description}</p>`;

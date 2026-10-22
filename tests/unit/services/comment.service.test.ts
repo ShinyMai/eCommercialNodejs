@@ -4,6 +4,7 @@ import mongoose from "mongoose";
 import type { AccountRole } from "#/auth/roles.js";
 import { CommentModel } from "#/models/comment.model.js";
 import CommentService from "#/services/comment.service.js";
+import NotificationService, { type PushInput } from "#/services/notification.service.js";
 import { newId, queryOf } from "../../helpers/fixtures.js";
 
 const productId = newId();
@@ -159,4 +160,32 @@ test("comment thread rejects unknown or invalid ids", async (t) => {
   t.mock.method(CommentModel, "findOne", () => queryOf(null));
   await assert.rejects(CommentService.getCommentThread(newId()), { name: "NotFoundError" });
   await assert.rejects(CommentService.getCommentThread("x"), /commentId/);
+});
+
+test("a reply notifies the parent's author, but replying to yourself does not", async (t) => {
+  const parentAuthor = newId();
+  const session = { withTransaction: async (work: () => Promise<unknown>) => work(), endSession: async () => undefined };
+  t.mock.method(mongoose, "startSession", async () => session);
+  t.mock.method(CommentModel, "findOne", () => queryOf({ comment_right: 5, comment_account: parentAuthor }));
+  t.mock.method(CommentModel, "updateMany", async () => ({}));
+  t.mock.method(CommentModel, "create", async ([payload]: [object]) => [{ ...payload, _id: newId() }]);
+  const push = t.mock.method(NotificationService, "push", async (_input: PushInput) => ({}) as any);
+
+  const parentId = newId();
+  const replier = newId();
+  const reply = await CommentService.createComment(
+    { comment_product: productId, comment_parent: parentId, comment_content: "Same here" },
+    replier,
+  );
+  const [input] = push.mock.calls[0].arguments;
+  assert.equal(input.type, "comment_reply");
+  assert.equal(input.to, parentAuthor);
+  assert.equal(input.sender, replier);
+  assert.deepEqual(input.data, { productId, commentId: String(reply._id), parentCommentId: parentId });
+
+  await CommentService.createComment(
+    { comment_product: productId, comment_parent: parentId, comment_content: "Edit: fixed" },
+    parentAuthor,
+  );
+  assert.equal(push.mock.callCount(), 1);
 });
