@@ -7,6 +7,7 @@ import { InventoryModel } from "#/models/inventory.model.js";
 import { OrderModel } from "#/models/order.model.js";
 import { ProductModel } from "#/models/product.model.js";
 import CheckoutService from "#/services/checkout.service.js";
+import NotificationService, { type PushInput } from "#/services/notification.service.js";
 import OrderService from "#/services/order.service.js";
 import { fakeQuery, newId } from "../../helpers/fixtures.js";
 
@@ -125,8 +126,11 @@ const setup = (t: TestContext) => {
   const lock = t.mock.method(redisClient, "set", async () => "OK");
   const unlock = t.mock.method(redisClient, "eval", async () => 1);
 
+  const push = t.mock.method(NotificationService, "push", async (_input: PushInput) => ({}) as any);
+  const notified = () => push.mock.calls.map(({ arguments: [input] }) => [input.type, input.to]);
+
   const stocks = () => state.inventories.map((inventory) => inventory.stock);
-  return { body, accountId, state, stocks, create, lock, unlock };
+  return { body, accountId, sellerId, state, stocks, create, lock, unlock, notified };
 };
 
 test("createOrder reserves every item, stores a snapshot and is idempotent per requestId", async (t) => {
@@ -218,4 +222,51 @@ test("cancellation is all-or-nothing across a multi-product order", async (t) =>
   assert.deepEqual(f.stocks(), [1, 1]);
   assert.equal(f.state.inventories[0].reservations[0].status, "active");
   assert.equal(f.state.order.status, "pending_payment");
+});
+
+test("a new order notifies the buyer and each shop once; retries and failures notify nobody", async (t) => {
+  const f = setup(t);
+  await OrderService.createOrder(f.body, f.accountId);
+  await OrderService.createOrder(f.body, f.accountId);
+  assert.deepEqual(f.notified(), [
+    ["order_placed", f.accountId],
+    ["shop_new_order", f.sellerId],
+  ]);
+
+  const failed = setup(t);
+  failed.state.failSave = true;
+  await assert.rejects(OrderService.createOrder(failed.body, failed.accountId), /storage failed/);
+  assert.deepEqual(failed.notified(), []);
+});
+
+test("cancelling notifies once, as cancelled or expired depending on the deadline", async (t) => {
+  const f = setup(t);
+  const orderId = String((await OrderService.createOrder(f.body, f.accountId))._id);
+  await OrderService.cancelOrder(orderId, f.accountId);
+  await OrderService.cancelOrder(orderId, f.accountId);
+  assert.deepEqual(f.notified().slice(2), [["order_cancelled", f.accountId]]);
+
+  const late = setup(t);
+  const lateId = String((await OrderService.createOrder(late.body, late.accountId))._id);
+  late.state.order.expiresAt = new Date(0);
+  await OrderService.cancelOrder(lateId, late.accountId);
+  assert.deepEqual(late.notified().slice(2), [["order_expired", late.accountId]]);
+});
+
+test("an order the cleanup job already expired is not notified again on cancel", async (t) => {
+  const f = setup(t);
+  const orderId = String((await OrderService.createOrder(f.body, f.accountId))._id);
+  f.state.order.status = "expired";
+  f.state.order.expiresAt = new Date(0);
+
+  await OrderService.cancelOrder(orderId, f.accountId);
+  assert.deepEqual(f.notified().slice(2), []);
+});
+
+test("a failing notification never fails the order", async (t) => {
+  const f = setup(t);
+  t.mock.method(NotificationService, "push", async () => {
+    throw new Error("notification store down");
+  });
+  assert.equal((await OrderService.createOrder(f.body, f.accountId)).status, "pending_payment");
 });

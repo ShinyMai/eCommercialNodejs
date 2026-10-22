@@ -11,6 +11,7 @@ import {
 import { findOrderByRequestId } from "#/repositories/order.repo.js";
 import { countPurchasableProducts } from "#/repositories/product.repo.js";
 import CheckoutService from "#/services/checkout.service.js";
+import NotificationService, { type PushInput } from "#/services/notification.service.js";
 import { withLocks } from "#/services/redis.service.js";
 import { isDuplicateKeyError, runInTransaction } from "#/utils/mongo.js";
 import { validateIdString } from "#/utils/validation.js";
@@ -65,6 +66,18 @@ const assertItemsPurchasable = async (items: ReservationInput[], session: Client
   }
 };
 
+type OrderResult = ReturnType<typeof toOrderResult>;
+
+/** The buyer hears about the order, and every shop in it hears about its new order once. */
+const orderPlacedNotifications = (order: OrderResult): PushInput[] => {
+  const orderId = String(order._id);
+  const shopIds = [...new Set(order.checkout_summary.map((shop) => shop.shop_id))];
+  return [
+    { type: "order_placed", to: order.accountId, data: { orderId } },
+    ...shopIds.map((shopId): PushInput => ({ type: "shop_new_order", to: shopId, sender: order.accountId, data: { orderId } })),
+  ];
+};
+
 const assertValidTotals = ({ checkout_order, checkout_summary }: CheckoutReview) => {
   if (Object.values(checkout_order).some(isInvalidAmount)) {
     throw new ConflictRequestError("Invalid order totals");
@@ -85,10 +98,14 @@ class OrderService {
 
     const reservationId = new Types.ObjectId().toHexString();
     const items = toReservationItems(checkout, reservationId);
+    // Set only when this call created the order, so idempotent retries notify nobody.
+    let placed: OrderResult | undefined;
 
+    let result: OrderResult;
     try {
-      return await withLocks(items, "Product is being reserved; please retry with the same requestId", () =>
+      result = await withLocks(items, "Product is being reserved; please retry with the same requestId", () =>
         runInTransaction(async (session) => {
+          placed = undefined; // withTransaction may rerun this callback.
           const existing = await findOrderByRequestId(accountId, requestId, session);
           if (existing) return toIdempotentResult(existing, requestHash);
 
@@ -103,7 +120,8 @@ class OrderService {
             [{ accountId, cartId, requestId, requestHash, reservationId, status: "pending_payment", expiresAt, ...review }],
             { session },
           );
-          return toOrderResult(created);
+          placed = toOrderResult(created);
+          return placed;
         }),
       );
     } catch (error) {
@@ -114,6 +132,9 @@ class OrderService {
       }
       throw error;
     }
+
+    if (placed) await NotificationService.notify(orderPlacedNotifications(placed));
+    return result;
   }
 
   static async getOrder(id: string, authenticatedAccountId: string) {
@@ -134,10 +155,12 @@ class OrderService {
     const orderId = validateIdString(id, "orderId");
     const accountId = validateIdString(authenticatedAccountId, "accountId");
 
-    return runInTransaction(async (session) => {
+    const { order: result, transitioned } = await runInTransaction(async (session) => {
       const order = await OrderModel.findOne({ _id: orderId, accountId }).session(session).exec();
       if (!order) throw new NotFoundError("Order not found");
-      if (order.status === "cancelled") return order.toObject();
+      if (order.status === "cancelled") return { order: order.toObject(), transitioned: false };
+      // An order the cleanup job already expired was notified there.
+      const transitioned = order.status === "pending_payment";
       const status = order.expiresAt <= new Date() ? "expired" : "cancelled";
 
       for (const shop of order.checkout_summary) {
@@ -157,8 +180,19 @@ class OrderService {
       order.status = status;
       order.cancelledAt = new Date();
       await order.save({ session });
-      return order.toObject();
+      return { order: order.toObject(), transitioned };
     });
+
+    if (transitioned) {
+      await NotificationService.notify([
+        {
+          type: result.status === "expired" ? "order_expired" : "order_cancelled",
+          to: accountId,
+          data: { orderId },
+        },
+      ]);
+    }
+    return result;
   }
 }
 

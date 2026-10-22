@@ -5,12 +5,20 @@ type Handler = (message: string, channel: string) => void;
 class RedisPubSubService {
   private publisher = redisClient;
   private subscriber = redisClient.duplicate();
-  private ready: Promise<unknown>;
+  private ready?: Promise<unknown>;
   private handlers = new Map<string, Set<Handler>>();
 
   constructor() {
     this.subscriber.on("error", (err) => console.error("[redis:sub]", err));
-    this.ready = this.subscriber.connect();
+  }
+
+  // connect on first subscribe so importing the module never opens a socket
+  private connect() {
+    this.ready ??= this.subscriber.connect().catch((err) => {
+      this.ready = undefined;
+      throw err;
+    });
+    return this.ready;
   }
 
   // one router per channel; fans out to all handlers
@@ -34,8 +42,13 @@ class RedisPubSubService {
     if (!set) {
       set = new Set();
       this.handlers.set(channel, set);
-      await this.ready;
-      await this.subscriber.subscribe(channel, this.route);
+      try {
+        await this.connect();
+        await this.subscriber.subscribe(channel, this.route);
+      } catch (err) {
+        this.handlers.delete(channel);
+        throw err;
+      }
     }
     set.add(handler);
     return () => this.unsubscribe(channel, handler);

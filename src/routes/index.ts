@@ -8,6 +8,7 @@ import discountRouter from "#/routes/discount.route.js";
 import orderRouter from "#/routes/order.route.js";
 import productRouter from "#/routes/product.route.js";
 import commentRouter from "#/routes/comment.route.js";
+import notificationRouter from "#/routes/notification.route.js";
 
 const router = Router();
 
@@ -21,5 +22,6 @@ router.use("/comments", commentRouter);
 router.use("/cart", cartRouter);
 router.use("/checkout", checkoutRouter);
 router.use("/orders", orderRouter);
+router.use("/notifications", notificationRouter);
 
 export default router;
